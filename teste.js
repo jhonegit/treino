@@ -301,11 +301,11 @@ rodar("sessao = criarSessao('treino-a'); desenhar();");
 
 confere('comeca fechado', rodar('historicoAberto'), null);
 confere('o painel esta escondido',
-  rodar("document.getElementById('historico').innerHTML"), '');
+  rodar("document.getElementById('painel').innerHTML"), '');
 
 rodar("abrirHistorico('supino-sentado');");
 confere('abriu no exercicio certo', rodar('historicoAberto'), 'supino-sentado');
-const painel = rodar("document.getElementById('historico').innerHTML");
+const painel = rodar("document.getElementById('painel').innerHTML");
 confere('mostra o nome do exercicio', painel.indexOf('Supino sentado') > -1, true);
 confere('conta as sessoes e a maior carga', painel.indexOf('2 sessões · maior carga 30 kg') > -1, true);
 confere('mostra a sessao mais recente primeiro',
@@ -323,13 +323,13 @@ confere('da para abrir no meio da serie', rodar('historicoAberto'), 'supino-sent
 confere('a serie registrada continua la', rodar('sessao.itens[1].series.length'), 1);
 rodar('fecharHistorico();');
 confere('fechou', rodar('historicoAberto'), null);
-confere('o painel esvaziou', rodar("document.getElementById('historico').innerHTML.indexOf('Supino') === -1 || true"), true);
+confere('o painel esvaziou', rodar("document.getElementById('painel').innerHTML.indexOf('Supino') === -1 || true"), true);
 confere('o treino continua onde estava', rodar('sessao.itens[1].series[0].reps'), 12);
 
 console.log('\n--- exercicio que nunca foi feito ---');
 rodar("abrirHistorico('panturrilha');");
 confere('avisa que nao ha nada',
-  rodar("document.getElementById('historico').innerHTML").indexOf('Nenhuma sessão registrada') > -1, true);
+  rodar("document.getElementById('painel').innerHTML").indexOf('Nenhuma sessão registrada') > -1, true);
 rodar('fecharHistorico();');
 
 
@@ -345,7 +345,7 @@ rodar('banco.sessoes = ' + JSON.stringify([
 confere('a fila esta no C, porque o ultimo concluido foi o B', rodar('sessao.treinoId'), 'treino-c');
 
 rodar('abrirListaDeTreinos();');
-const lista = rodar("document.getElementById('historico').innerHTML");
+const lista = rodar("document.getElementById('painel').innerHTML");
 confere('o painel abriu na lista', rodar('listaAberta'), true);
 confere('conta os treinos guardados', lista.indexOf('2 treinos guardados') > -1, true);
 confere('mostra o treino B', lista.indexOf('Treino B') > -1, true);
@@ -378,13 +378,94 @@ confere('a fila voltou para o A', rodar('proximoTreinoId()'), 'treino-a');
 
 console.log('\n--- treino de hoje, ainda em andamento ---');
 rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12); abrirListaDeTreinos();");
-const comHoje = rodar("document.getElementById('historico').innerHTML");
+const comHoje = rodar("document.getElementById('painel').innerHTML");
 confere('aparece marcado como em andamento', comHoje.indexOf('em andamento') > -1, true);
 confere('tem como apagar ele tambem', comHoje.indexOf('data-acao="descartar-atual"') > -1, true);
 rodar('pedirDescarte(); executarConfirmacao();');
 confere('o treino de hoje foi descartado', rodar('sessaoTemRegistro(sessao)'), false);
 confere('e nao virou treino guardado', rodar('banco.sessoes.length'), 0);
 rodar('fecharHistorico();');
+
+
+console.log('\n--- editar treino ---');
+rodar("banco.sessoes = []; recalcularFila(); sessao = criarSessao('treino-a'); abrirEdicao('treino-a');");
+const telaEdicao = rodar("document.getElementById('painel').innerHTML");
+confere('o painel abriu na edicao', rodar('edicao.treinoId'), 'treino-a');
+confere('lista os 7 exercicios do A', rodar("acharTreino('treino-a').itens.length"), 7);
+confere('mostra os botoes de ajuste', telaEdicao.indexOf('data-acao="mais-series"') > -1, true);
+confere('tem aba dos tres treinos', (telaEdicao.match(/data-acao="editar-treino"/g) || []).length, 3);
+
+console.log('\n--- mudar series, faixa e descanso ---');
+rodar('mudarSeries(0, +1);');
+confere('o primeiro exercicio foi para 3 series', rodar("acharTreino('treino-a').itens[0].series"), 3);
+rodar('mudarSeries(0, -1);');
+confere('e voltou para 2', rodar("acharTreino('treino-a').itens[0].series"), 2);
+rodar('mudarFaixa(0, "max", +2);');
+confere('o maximo de reps subiu para 14', rodar("acharTreino('treino-a').itens[0].repMax"), 14);
+rodar('mudarFaixa(0, "min", -20);');
+confere('o minimo nao desce abaixo de 1', rodar("acharTreino('treino-a').itens[0].repMin"), 1);
+rodar('mudarFaixa(0, "min", +99);');
+confere('o minimo nunca passa o maximo', rodar("acharTreino('treino-a').itens[0].repMin"), 13);
+rodar('mudarDescanso(0, +15);');
+confere('o descanso subiu 15 segundos', rodar("acharTreino('treino-a').itens[0].descansoSeg"), 135);
+rodar('mudarDescanso(0, -999);');
+confere('o descanso nao desce abaixo de 30', rodar("acharTreino('treino-a').itens[0].descansoSeg"), 30);
+confere('tudo isso ficou salvo',
+  rodar("JSON.parse(localStorage.getItem('treino.banco')).treinos[0].itens[0].descansoSeg"), 30);
+
+console.log('\n--- mudar a ordem ---');
+const primeiro = rodar("acharTreino('treino-a').itens[0].exercicioId");
+const segundo = rodar("acharTreino('treino-a').itens[1].exercicioId");
+rodar('moverItem(0, +1);');
+confere('o primeiro desceu', rodar("acharTreino('treino-a').itens[1].exercicioId"), primeiro);
+confere('o segundo subiu', rodar("acharTreino('treino-a').itens[0].exercicioId"), segundo);
+rodar('moverItem(1, -1);');
+confere('e voltou ao lugar', rodar("acharTreino('treino-a').itens[0].exercicioId"), primeiro);
+rodar('moverItem(0, -1);');
+confere('subir o primeiro nao faz nada', rodar("acharTreino('treino-a').itens[0].exercicioId"), primeiro);
+
+console.log('\n--- trocar um exercicio, guardando o historico ---');
+/* o Smith ja tem duas sessoes registradas */
+rodar('banco.sessoes = ' + JSON.stringify([
+  { id: 'h1', data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+      exercicioId: 'quadriceps-a', series: [{ cargaKg: 40, reps: 12 }],
+      desconforto: { nivel: 'leve', regioes: ['joelho'] }, observacao: '', concluido: true }] }
+]) + ';');
+rodar("edicao.escolhendo = { modo: 'substituir', i: 0 }; nomeDigitado = 'Leg press 45'; criarExercicioDigitado();");
+confere('o exercicio novo entrou no lugar',
+  rodar("acharExercicio(acharTreino('treino-a').itens[0].exercicioId).nome"), 'Leg press 45');
+confere('o id novo saiu do nome', rodar("acharTreino('treino-a').itens[0].exercicioId"), 'leg-press-45');
+confere('o historico do Smith continua guardado', rodar("execucoesDe('quadriceps-a').length"), 1);
+confere('o exercicio novo comeca sem historico', rodar("execucoesDe('leg-press-45').length"), 0);
+confere('o Smith continua no catalogo, para poder voltar',
+  rodar("acharExercicio('quadriceps-a') !== undefined"), true);
+confere('a carga do novo comeca em branco, sem herdar', rodar('sessao.itens[0].cargaAtualKg'), null);
+
+console.log('\n--- acrescentar e tirar exercicio ---');
+rodar("edicao.escolhendo = { modo: 'adicionar' }; usarExercicio('panturrilha');");
+confere('o treino ficou com 8 exercicios', rodar("acharTreino('treino-a').itens.length"), 8);
+confere('e o treino de hoje acompanhou', rodar('sessao.itens.length'), 8);
+rodar('removerItem(7);');
+confere('voltou a 7', rodar("acharTreino('treino-a').itens.length"), 7);
+
+console.log('\n--- editar sem perder o que ja foi registrado hoje ---');
+rodar("sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12);");
+const antesDeEditar = rodar('sessao.itens[1].series.length');
+rodar('moverItem(3, +1); mudarSeries(2, +1);');
+confere('a serie registrada hoje continua la',
+  rodar("sessao.itens.filter(it => it.series.length > 0).length"), antesDeEditar);
+confere('e continua com as repeticoes certas',
+  rodar("sessao.itens.filter(it => it.series.length > 0)[0].series[0].reps"), 12);
+
+console.log('\n--- proteções ---');
+rodar("abrirEdicao('treino-c');");
+confere('da para editar outro treino', rodar('edicao.treinoId'), 'treino-c');
+rodar("while (acharTreino('treino-c').itens.length > 1) removerItem(0);");
+rodar('removerItem(0);');
+confere('nao deixa o treino ficar sem nenhum exercicio',
+  rodar("acharTreino('treino-c').itens.length"), 1);
+rodar('fecharHistorico();');
+confere('fechou a edicao', rodar('edicao'), null);
 
 
 /* volta o historico que o desenho da tela espera logo abaixo */

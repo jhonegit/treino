@@ -533,7 +533,7 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 
 /* ---------- painel do histórico ---------- */
 
-#historico {
+#painel {
   position: fixed;
   inset: 0;                 /* cobre a tela inteira */
   background: var(--fundo-morno);
@@ -542,7 +542,7 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
   padding-bottom: 140px;    /* espaço para a barra do cronômetro */
 }
 
-.topo-historico {
+.topo-painel {
   position: sticky;
   top: 0;
   background: var(--laranja);
@@ -554,18 +554,18 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
   gap: 12px;
 }
 
-.topo-historico h2 { margin: 0; font-size: 21px; line-height: 1.15; }
+.topo-painel h2 { margin: 0; font-size: 21px; line-height: 1.15; }
 
-.topo-historico button {
+.topo-painel button {
   background: #fff;
   color: var(--laranja-escuro);
   border-color: #fff;
   flex: none;
 }
 
-.resumo-historico { font-size: 13px; color: #ffe6db; margin-top: 4px; }
+.resumo-painel { font-size: 13px; color: #ffe6db; margin-top: 4px; }
 
-.lista-historico { padding: 12px; }
+.lista-painel { padding: 12px; }
 
 .sessao {
   display: flex;
@@ -624,3 +624,108 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 
 /* na lista de treinos o botão de apagar fica na direita do cartão */
 .sessao > button { align-self: center; flex: none; }
+
+/* ---------- edição do treino ---------- */
+
+.botoes-cabecalho { display: flex; gap: 8px; }
+
+.abas {
+  display: flex;
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+
+.abas button { flex: 1; }
+
+.item-edicao {
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.cabeca-edicao {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.nome-edicao {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--marrom);
+  line-height: 1.2;
+}
+
+.setas { display: flex; gap: 6px; flex: none; }
+.setas button { width: 44px; padding: 8px 0; }
+
+.ajuste {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rotulo-ajuste {
+  flex: 1;
+  font-size: 14px;
+  color: var(--marrom-claro);
+}
+
+.ajuste button { width: 46px; padding: 8px 0; font-size: 20px; font-weight: 700; }
+
+.valor-ajuste {
+  width: 62px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--marrom);
+  font-variant-numeric: tabular-nums;
+}
+
+.acoes-edicao { display: flex; gap: 8px; margin-top: 14px; }
+.acoes-edicao button { flex: 1; }
+
+.escolha {
+  text-align: left;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+.aviso-troca {
+  background: var(--laranja-fundo);
+  border: 1px solid var(--laranja);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  color: var(--laranja-escuro);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.novo-exercicio {
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.novo-exercicio input {
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--texto);
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+.novo-exercicio input:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }

@@ -128,7 +128,9 @@ let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
 let historicoAberto = null;         // id do exercício com o histórico na tela
 let listaAberta = false;            // lista dos treinos já registrados
+let edicao = null;                  // { treinoId, escolhendo } quando editando um treino
 let sessaoApagada = null;           // guardada na memória para o Desfazer
+let nomeDigitado = '';              // nome do exercício novo, enquanto é escrito
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -453,6 +455,13 @@ function abrirHistorico(exercicioId) {
   desenhar();
 }
 
+function abrirEdicao(treinoId) {
+  edicao = { treinoId: treinoId, escolhendo: null };
+  historicoAberto = null;
+  listaAberta = false;
+  desenhar();
+}
+
 function abrirListaDeTreinos() {
   listaAberta = true;
   historicoAberto = null;
@@ -462,7 +471,138 @@ function abrirListaDeTreinos() {
 function fecharHistorico() {
   historicoAberto = null;
   listaAberta = false;
+  edicao = null;
   desenhar();
+}
+
+/* ---------- editar o treino ----------
+   Tudo aqui mexe só na LISTA do treino, nunca no que você já registrou.
+   Depois de cada mudança, o treino de hoje é reencaixado pela função
+   sincronizarSessao, que preserva as séries já feitas. */
+
+function itensDoTreinoEmEdicao() {
+  return acharTreino(edicao.treinoId).itens;
+}
+
+/* Reconstrói o treino de hoje a partir da lista nova, mantendo o que já
+   foi registrado em cada exercício. Se um exercício saiu do treino, o
+   que foi feito nele hoje sai junto; o histórico antigo não se mexe. */
+function sincronizarSessao() {
+  if (!sessao || sessao.treinoId !== edicao.treinoId) return;
+  const guardado = {};
+  sessao.itens.forEach(item => { guardado[item.exercicioId] = item; });
+
+  sessao.itens = acharTreino(sessao.treinoId).itens.map(it => {
+    if (guardado[it.exercicioId]) return guardado[it.exercicioId];
+    const exercicio = acharExercicio(it.exercicioId);
+    const anteriores = execucoesDe(it.exercicioId);
+    return {
+      exercicioId: it.exercicioId,
+      cargaAtualKg: exercicio.semCarga ? null : (anteriores.length ? cargaDoItem(anteriores[0].item) : null),
+      series: [], desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: false
+    };
+  });
+  if (sessao.itemAberto >= sessao.itens.length) sessao.itemAberto = 0;
+  salvarSessao();
+}
+
+function guardarEdicao() {
+  salvarBanco();
+  sincronizarSessao();
+  desenhar();
+}
+
+function moverItem(i, direcao) {
+  const itens = itensDoTreinoEmEdicao();
+  const destino = i + direcao;
+  if (destino < 0 || destino >= itens.length) return;
+  const guardado = itens[i];
+  itens[i] = itens[destino];
+  itens[destino] = guardado;
+  guardarEdicao();
+}
+
+function mudarSeries(i, delta) {
+  const item = itensDoTreinoEmEdicao()[i];
+  item.series = Math.min(8, Math.max(1, item.series + delta));
+  guardarEdicao();
+}
+
+function mudarFaixa(i, ponta, delta) {
+  const item = itensDoTreinoEmEdicao()[i];
+  if (ponta === 'min') {
+    item.repMin = Math.min(item.repMax - 1, Math.max(1, item.repMin + delta));
+  } else {
+    item.repMax = Math.max(item.repMin + 1, Math.min(50, item.repMax + delta));
+  }
+  guardarEdicao();
+}
+
+function mudarDescanso(i, delta) {
+  const item = itensDoTreinoEmEdicao()[i];
+  item.descansoSeg = Math.min(300, Math.max(30, item.descansoSeg + delta));
+  guardarEdicao();
+}
+
+function removerItem(i) {
+  const itens = itensDoTreinoEmEdicao();
+  if (itens.length <= 1) return;
+  itens.splice(i, 1);
+  guardarEdicao();
+}
+
+/* Transforma "Agachamento no Smith" em "agachamento-no-smith", que é
+   como os exercícios são identificados por dentro. normalize [nativo]
+   separa a letra do acento, e o replace joga o acento fora. */
+function apelidoDe(nome) {
+  const base = String(nome).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'exercicio';
+  let apelido = base, n = 2;
+  while (acharExercicio(apelido)) { apelido = base + '-' + n; n++; }
+  return apelido;
+}
+
+/* Cria um exercício novo no catálogo. Id novo de propósito: assim o
+   histórico do exercício antigo fica intacto e o novo começa do zero. */
+function criarExercicio(nome) {
+  const exercicio = {
+    id: apelidoDe(nome),
+    nome: String(nome).trim(),
+    equipamentoId: null,
+    incrementoKg: banco.config.incrementoPadraoKg,
+    ilustracao: null,
+    instrucoes: ''
+  };
+  banco.exercicios.push(exercicio);
+  return exercicio;
+}
+
+function criarExercicioDigitado() {
+  const nome = (nomeDigitado || '').trim();
+  if (!nome) { mostrarFaixa('Escreva o nome do exercicio', false); return; }
+  const novo = criarExercicio(nome);
+  nomeDigitado = '';
+  usarExercicio(novo.id);
+}
+
+function usarExercicio(exercicioId) {
+  const itens = itensDoTreinoEmEdicao();
+  const escolha = edicao.escolhendo;
+  if (!escolha) return;
+  if (escolha.modo === 'substituir') {
+    itens[escolha.i].exercicioId = exercicioId;
+  } else {
+    const molde = itens[itens.length - 1];
+    itens.push({
+      exercicioId: exercicioId,
+      series: molde ? molde.series : 2,
+      repMin: molde ? molde.repMin : 8,
+      repMax: molde ? molde.repMax : 12,
+      descansoSeg: molde ? molde.descansoSeg : 90
+    });
+  }
+  edicao.escolhendo = null;
+  guardarEdicao();
 }
 
 /* Depois de apagar ou devolver uma sessão, a fila A > B > C precisa ser
@@ -891,14 +1031,17 @@ function desenhar() {
     '</div>' +
     '<div class="linha-progresso">' +
       '<span>' + feitos + ' de ' + sessao.itens.length + ' exercícios</span>' +
-      '<button class="btn-pequeno" data-acao="trocar-treino">Trocar treino</button>' +
+      '<span class="botoes-cabecalho">' +
+        '<button class="btn-pequeno" data-acao="editar-treino" data-id="' + treino.id + '">Editar</button>' +
+        '<button class="btn-pequeno" data-acao="trocar-treino">Trocar treino</button>' +
+      '</span>' +
     '</div>';
 
   /* --- sessão pendente toma a tela --- */
   if (perguntarSobrePendente) {
     document.getElementById('conteudo').innerHTML = desenharConfirmacao() + desenharAviso();
     document.getElementById('rodape').innerHTML = '';
-    desenharHistorico();
+    desenharPainel();
     return;
   }
 
@@ -920,7 +1063,7 @@ function desenhar() {
       '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
     '</div>';
 
-  desenharHistorico();
+  desenharPainel();
 
   /* o campo de carga precisa receber o cursor depois de desenhado */
   if (editandoCarga !== null) {
@@ -932,9 +1075,10 @@ function desenhar() {
 /* Painel do histórico: sobe por cima da tela, sem tirar você do treino.
    Ele fica ABAIXO da barra do cronômetro de propósito, para você poder
    olhar o histórico enquanto o descanso corre. */
-function desenharHistorico() {
-  const caixa = document.getElementById('historico');
+function desenharPainel() {
+  const caixa = document.getElementById('painel');
 
+  if (edicao)      { caixa.classList.remove('oculto'); caixa.innerHTML = desenharEdicao(); return; }
   if (listaAberta) { caixa.classList.remove('oculto'); caixa.innerHTML = desenharListaDeTreinos(); return; }
   if (!historicoAberto) { caixa.classList.add('oculto'); return; }
 
@@ -970,13 +1114,98 @@ function desenharHistorico() {
 
   caixa.classList.remove('oculto');
   caixa.innerHTML =
-    '<div class="topo-historico">' +
+    '<div class="topo-painel">' +
       '<div><h2>' + esc(exercicio.nome) + '</h2>' +
-      '<div class="resumo-historico">' + resumo + '</div></div>' +
+      '<div class="resumo-painel">' + resumo + '</div></div>' +
       '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
-    '<div class="lista-historico">' +
+    '<div class="lista-painel">' +
       (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
+    '</div>';
+}
+
+/* Tela de edição de um treino. Mexe na lista do dia, não no histórico. */
+function desenharEdicao() {
+  const treino = acharTreino(edicao.treinoId);
+
+  /* escolhendo um exercício para entrar ou substituir */
+  if (edicao.escolhendo) return desenharEscolhaDeExercicio();
+
+  const abas = banco.treinos.slice().sort((a, b) => a.ordem - b.ordem).map(t =>
+    '<button class="btn-pequeno' + (t.id === edicao.treinoId ? ' btn-laranja' : '') +
+    '" data-acao="editar-treino" data-id="' + t.id + '">' + esc(t.nome) + '</button>'
+  ).join('');
+
+  const linhas = treino.itens.map((it, i) => {
+    const exercicio = acharExercicio(it.exercicioId);
+    return '<div class="item-edicao">' +
+      '<div class="cabeca-edicao">' +
+        '<div class="nome-edicao">' + (i + 1) + '. ' + esc(exercicio.nome) + '</div>' +
+        '<div class="setas">' +
+          '<button class="btn-pequeno" data-acao="subir" data-i="' + i + '">&#9650;</button>' +
+          '<button class="btn-pequeno" data-acao="descer" data-i="' + i + '">&#9660;</button>' +
+        '</div>' +
+      '</div>' +
+      linhaDeAjuste('Series', it.series, 'series', i) +
+      linhaDeAjuste('Minimo de reps', it.repMin, 'repmin', i) +
+      linhaDeAjuste('Maximo de reps', it.repMax, 'repmax', i) +
+      linhaDeAjuste('Descanso', it.descansoSeg + 's', 'descanso', i) +
+      '<div class="acoes-edicao">' +
+        '<button class="btn-pequeno" data-acao="substituir" data-i="' + i + '">Trocar exercicio</button>' +
+        '<button class="btn-pequeno btn-perigo" data-acao="remover-item" data-i="' + i + '">Tirar do treino</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Editar treino</h2>' +
+      '<div class="resumo-painel">muda a lista do dia, nao mexe no historico</div></div>' +
+      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="abas">' + abas + '</div>' +
+    '<div class="lista-painel">' + linhas +
+      '<button class="btn-largo btn-marrom" data-acao="adicionar-item">Acrescentar exercicio</button>' +
+    '</div>';
+}
+
+function linhaDeAjuste(rotulo, valor, campo, i) {
+  return '<div class="ajuste">' +
+    '<div class="rotulo-ajuste">' + rotulo + '</div>' +
+    '<button class="btn-pequeno" data-acao="menos-' + campo + '" data-i="' + i + '">&minus;</button>' +
+    '<div class="valor-ajuste">' + esc(valor) + '</div>' +
+    '<button class="btn-pequeno" data-acao="mais-' + campo + '" data-i="' + i + '">+</button>' +
+  '</div>';
+}
+
+/* Lista de exercicios para escolher, mais o campo de criar um novo. */
+function desenharEscolhaDeExercicio() {
+  const escolha = edicao.escolhendo;
+  const titulo = escolha.modo === 'substituir' ? 'Trocar por' : 'Acrescentar';
+
+  const usados = acharTreino(edicao.treinoId).itens.map(it => it.exercicioId);
+  const lista = banco.exercicios.slice()
+    .sort((a, b) => a.nome.localeCompare(b.nome))   // localeCompare [nativo]: ordem alfabetica
+    .map(e => '<button class="btn-largo escolha" data-acao="usar-exercicio" data-id="' + e.id + '">' +
+      esc(e.nome) + (usados.indexOf(e.id) >= 0 ? ' <span class="marca">ja esta no treino</span>' : '') +
+      '</button>')
+    .join('');
+
+  const aviso = escolha.modo === 'substituir'
+    ? '<div class="aviso-troca">O historico do exercicio que sai continua guardado. ' +
+      'O que entrar comeca do zero, sem herdar carga.</div>'
+    : '';
+
+  return '<div class="topo-painel">' +
+      '<div><h2>' + titulo + '</h2></div>' +
+      '<button class="btn-laranja" data-acao="voltar-edicao">Voltar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' + aviso +
+      '<div class="novo-exercicio">' +
+        '<div class="rotulo">Criar um exercicio novo</div>' +
+        '<input type="text" data-campo="novo-exercicio" placeholder="Nome do exercicio">' +
+        '<button class="btn-largo btn-marrom" data-acao="criar-exercicio">Criar e usar</button>' +
+      '</div>' +
+      '<div class="rotulo">Ou escolher um que ja existe</div>' + lista +
     '</div>';
 }
 
@@ -1011,14 +1240,14 @@ function desenharListaDeTreinos() {
     '</div>';
   }).join('');
 
-  return '<div class="topo-historico">' +
+  return '<div class="topo-painel">' +
       '<div><h2>Treinos registrados</h2>' +
-      '<div class="resumo-historico">' + registrados.length +
+      '<div class="resumo-painel">' + registrados.length +
         (registrados.length === 1 ? ' treino guardado' : ' treinos guardados') + '</div></div>' +
       '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
     desenharConfirmacao() +
-    '<div class="lista-historico">' +
+    '<div class="lista-painel">' +
       emAndamento + linhas +
       (registrados.length || emAndamento ? '' : '<div class="vazio">Nada registrado ainda.</div>') +
     '</div>';
@@ -1228,6 +1457,23 @@ document.addEventListener('click', function (evento) {
     case 'abrir-cartao':       abrirCartao(i); break;
     case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
     case 'ver-treinos':        abrirListaDeTreinos(); break;
+    case 'editar-treino':      abrirEdicao(alvo.dataset.id); break;
+    case 'subir':              moverItem(i, -1); break;
+    case 'descer':             moverItem(i, +1); break;
+    case 'mais-series':        mudarSeries(i, +1); break;
+    case 'menos-series':       mudarSeries(i, -1); break;
+    case 'mais-repmin':        mudarFaixa(i, 'min', +1); break;
+    case 'menos-repmin':       mudarFaixa(i, 'min', -1); break;
+    case 'mais-repmax':        mudarFaixa(i, 'max', +1); break;
+    case 'menos-repmax':       mudarFaixa(i, 'max', -1); break;
+    case 'mais-descanso':      mudarDescanso(i, +15); break;
+    case 'menos-descanso':     mudarDescanso(i, -15); break;
+    case 'remover-item':       removerItem(i); break;
+    case 'substituir':         edicao.escolhendo = { modo: 'substituir', i: i }; desenhar(); break;
+    case 'adicionar-item':     edicao.escolhendo = { modo: 'adicionar' }; desenhar(); break;
+    case 'voltar-edicao':      edicao.escolhendo = null; desenhar(); break;
+    case 'usar-exercicio':     usarExercicio(alvo.dataset.id); break;
+    case 'criar-exercicio':    criarExercicioDigitado(); break;
     case 'apagar-sessao':      pedirApagarSessao(alvo.dataset.id); break;
     case 'descartar-atual':    pedirDescarte(); break;
     case 'fechar-historico':   fecharHistorico(); break;
@@ -1273,6 +1519,8 @@ document.addEventListener('input', function (evento) {
   if (campo === 'obs') {
     sessao.itens[Number(alvo.dataset.i)].observacao = alvo.value;
     salvarSessao();
+  } else if (campo === 'novo-exercicio') {
+    nomeDigitado = alvo.value;
   } else if (campo === 'carga') {
     const valor = paraNumero(alvo.value);
     if (valor !== null) {
