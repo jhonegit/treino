@@ -744,3 +744,55 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 }
 
 .atencao-painel { margin: 12px 12px 0; }
+
+/* ---------- gráfico de evolução ---------- */
+
+.caixa-grafico {
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  margin: 12px 12px 0;
+  padding: 12px;
+}
+
+.abas-grafico { display: flex; gap: 8px; margin-bottom: 10px; }
+.abas-grafico button { flex: 1; }
+
+.grafico { width: 100%; height: auto; display: block; }
+
+.grafico .eixo { stroke: var(--borda-forte); stroke-width: 1; }
+
+.grafico .linha {
+  fill: none;
+  stroke: var(--laranja);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.grafico circle { fill: var(--laranja); }
+
+.grafico .marca-eixo { font-size: 9px; fill: var(--marrom-claro); font-family: inherit; }
+.grafico .marca-eixo.fim { text-anchor: end; }
+
+.grafico .valor-topo {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--laranja-escuro);
+  text-anchor: end;
+  font-family: inherit;
+}
+
+.grafico-vazio {
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--marrom-claro);
+  font-size: 14px;
+}
+
+.legenda-grafico {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--marrom-claro);
+  text-align: center;
+}

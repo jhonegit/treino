@@ -131,6 +131,7 @@ let listaAberta = false;            // lista dos treinos já registrados
 let edicao = null;                  // { treinoId, escolhendo } quando editando um treino
 let sessaoApagada = null;           // guardada na memória para o Desfazer
 let nomeDigitado = '';              // nome do exercício novo, enquanto é escrito
+let graficoModo = 'carga';          // o gráfico do histórico: 'carga' ou 'volume'
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -475,6 +476,81 @@ function fecharHistorico() {
   listaAberta = false;
   edicao = null;
   desenhar();
+}
+
+/* ---------- gráfico de evolução ----------
+   Desenhado à mão em SVG, que é o desenho vetorial que o próprio
+   navegador entende. Sem biblioteca nenhuma, sem internet, e o
+   arquivo inteiro pesa menos que uma imagem.
+
+   São duas leituras do mesmo histórico:
+     carga  = o peso levantado naquele dia
+     volume = peso x repetições somado, ou seja, o trabalho do dia */
+
+function volumeDoItem(item) {
+  return item.series.reduce(function (soma, s) {
+    return soma + (typeof s.cargaKg === 'number' ? s.cargaKg * s.reps : s.reps);
+  }, 0);
+}
+
+function desenharGrafico(execucoes, modo) {
+  /* do mais antigo para o mais novo, no máximo 15 pontos */
+  const pontos = execucoes.slice(0, 15).reverse().map(function (e) {
+    return { data: e.data, valor: modo === 'volume' ? volumeDoItem(e.item) : cargaDoItem(e.item) };
+  }).filter(function (p) { return typeof p.valor === 'number'; });
+
+  if (pontos.length < 2) {
+    return '<div class="grafico-vazio">O gráfico aparece a partir da segunda sessão registrada.</div>';
+  }
+
+  const valores = pontos.map(function (p) { return p.valor; });
+  const maior = Math.max.apply(null, valores);
+  const menor = Math.min.apply(null, valores);
+  /* uma folga em cima e embaixo, para a linha não encostar na borda.
+     Quando todos os valores são iguais, a folga vira 10% do próprio valor. */
+  const folga = (maior - menor) ? (maior - menor) * 0.25 : (maior * 0.1 || 1);
+  const alto = maior + folga, baixo = menor - folga;
+
+  const E = 40, D = 310, T = 16, B = 104;   // as bordas do desenho
+  const x = function (i) { return E + (D - E) * (i / (pontos.length - 1)); };
+  const y = function (v) { return B - ((v - baixo) / (alto - baixo)) * (B - T); };
+
+  const linha = pontos.map(function (p, i) { return x(i).toFixed(1) + ',' + y(p.valor).toFixed(1); }).join(' ');
+  const bolinhas = pontos.map(function (p, i) {
+    return '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(p.valor).toFixed(1) + '" r="3.5" />';
+  }).join('');
+
+  const ultimo = pontos[pontos.length - 1];
+  const unidade = modo === 'volume' ? '' : ' kg';
+
+  return '<svg class="grafico" viewBox="0 0 320 126" role="img">' +
+    '<line class="eixo" x1="' + E + '" y1="' + B + '" x2="' + D + '" y2="' + B + '" />' +
+    '<text class="marca-eixo" x="4" y="' + (T + 4) + '">' + esc(numero(maior)) + '</text>' +
+    '<text class="marca-eixo" x="4" y="' + (B + 4) + '">' + esc(numero(menor)) + '</text>' +
+    '<polyline class="linha" points="' + linha + '" />' +
+    bolinhas +
+    '<text class="marca-eixo" x="' + E + '" y="120">' + dataCurta(pontos[0].data) + '</text>' +
+    '<text class="marca-eixo fim" x="' + D + '" y="120">' + dataCurta(ultimo.data) + '</text>' +
+    '<text class="valor-topo" x="' + D + '" y="' + Math.max(12, y(ultimo.valor) - 8).toFixed(1) + '">' +
+      esc(numero(ultimo.valor)) + unidade + '</text>' +
+  '</svg>';
+}
+
+function blocoDoGrafico(execucoes) {
+  return '<div class="caixa-grafico">' +
+    '<div class="abas-grafico">' +
+      '<button class="btn-pequeno' + (graficoModo === 'carga' ? ' btn-laranja' : '') +
+        '" data-acao="grafico-carga">Carga</button>' +
+      '<button class="btn-pequeno' + (graficoModo === 'volume' ? ' btn-laranja' : '') +
+        '" data-acao="grafico-volume">Volume</button>' +
+    '</div>' +
+    desenharGrafico(execucoes, graficoModo) +
+    '<div class="legenda-grafico">' +
+      (graficoModo === 'carga'
+        ? 'Peso levantado em cada sessão.'
+        : 'Peso vezes repetições somado em cada sessão, o trabalho do dia.') +
+    '</div>' +
+  '</div>';
 }
 
 /* Aviso de desconforto repetido. Regra explícita, combinada, e nada
@@ -1166,6 +1242,7 @@ function desenharPainel() {
       '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
     (aviso ? '<div class="atencao atencao-painel">' + esc(textoDoAviso(aviso)) + '</div>' : '') +
+    blocoDoGrafico(feitos) +
     '<div class="lista-painel">' +
       (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
     '</div>';
@@ -1509,6 +1586,8 @@ document.addEventListener('click', function (evento) {
   switch (acao) {
     case 'abrir-cartao':       abrirCartao(i); break;
     case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
+    case 'grafico-carga':      graficoModo = 'carga'; desenhar(); break;
+    case 'grafico-volume':     graficoModo = 'volume'; desenhar(); break;
     case 'ver-treinos':        abrirListaDeTreinos(); break;
     case 'editar-treino':      abrirEdicao(alvo.dataset.id); break;
     case 'subir':              moverItem(i, -1); break;

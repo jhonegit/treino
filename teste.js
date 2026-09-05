@@ -308,8 +308,11 @@ confere('abriu no exercicio certo', rodar('historicoAberto'), 'supino-sentado');
 const painel = rodar("document.getElementById('painel').innerHTML");
 confere('mostra o nome do exercicio', painel.indexOf('Supino sentado') > -1, true);
 confere('conta as sessoes e a maior carga', painel.indexOf('2 sessões · maior carga 30 kg') > -1, true);
-confere('mostra a sessao mais recente primeiro',
-  painel.indexOf('03/09') < painel.indexOf('01/09'), true);
+const soLista = painel.slice(painel.indexOf('lista-painel'));
+confere('na lista, a sessao mais recente vem primeiro',
+  soLista.indexOf('03/09') < soLista.indexOf('01/09'), true);
+confere('no grafico, a linha corre do mais antigo para o mais novo',
+  painel.indexOf('01/09') < painel.indexOf('lista-painel'), true);
 confere('mostra a carga', painel.indexOf('30 kg') > -1, true);
 confere('mostra as repeticoes de cada serie', painel.indexOf('12 · 11 reps') > -1, true);
 confere('mostra o RIR', painel.indexOf('RIR 2') > -1, true);
@@ -546,6 +549,61 @@ rodar('fecharHistorico();');
 rodar("sessao.itemAberto = sessao.itens.findIndex(it => it.exercicioId === 'panturrilha'); desenhar();");
 confere('exercicio sem desconforto nao mostra nada',
   rodar("document.getElementById('conteudo').innerHTML").indexOf('desconforto moderado ou forte') === -1, true);
+
+
+console.log('\n--- grafico de evolucao ---');
+const sessaoGraf = (id, data, carga, reps) => ({
+  id: id, data: data, treinoId: 'treino-a', estado: 'concluida', itens: [{
+    exercicioId: 'banco-scott',
+    series: [{ cargaKg: carga, reps: reps }, { cargaKg: carga, reps: reps, rir: 2 }],
+    desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] });
+
+rodar('banco.sessoes = [' + JSON.stringify(sessaoGraf('g1', '2026-09-01', 20, 10)) + '];');
+rodar("graficoModo = 'carga'; abrirHistorico('banco-scott');");
+let painelGraf = rodar("document.getElementById('painel').innerHTML");
+confere('com uma sessao so, avisa que falta',
+  painelGraf.indexOf('a partir da segunda sessão') > -1, true);
+
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoGraf('g1', '2026-09-01', 20, 10),
+  sessaoGraf('g2', '2026-09-03', 22, 10),
+  sessaoGraf('g3', '2026-09-05', 22, 12),
+  sessaoGraf('g4', '2026-09-08', 24, 11)
+]) + "; abrirHistorico('banco-scott');");
+painelGraf = rodar("document.getElementById('painel').innerHTML");
+confere('desenha o grafico em SVG', painelGraf.indexOf('<svg class="grafico"') > -1, true);
+confere('um ponto por sessao', (painelGraf.match(/<circle /g) || []).length, 4);
+confere('mostra a maior carga no eixo', painelGraf.indexOf('>24<') > -1, true);
+confere('mostra a menor carga no eixo', painelGraf.indexOf('>20<') > -1, true);
+confere('destaca o valor mais recente', painelGraf.indexOf('24 kg') > -1, true);
+confere('mostra a data mais antiga e a mais nova',
+  painelGraf.indexOf('01/09') > -1 && painelGraf.indexOf('08/09') > -1, true);
+confere('explica o que a linha mostra',
+  painelGraf.indexOf('Peso levantado em cada sessão') > -1, true);
+
+console.log('\n--- trocar para volume ---');
+rodar("graficoModo = 'volume'; desenhar();");
+painelGraf = rodar("document.getElementById('painel').innerHTML");
+confere('o volume da sessao e peso vezes reps somado',
+  rodar('volumeDoItem(' + JSON.stringify({ series: [{ cargaKg: 24, reps: 11 }, { cargaKg: 24, reps: 11 }] }) + ')'), 528);
+confere('o grafico mudou de leitura',
+  painelGraf.indexOf('trabalho do dia') > -1, true);
+confere('e o maior volume aparece no eixo', painelGraf.indexOf('>528<') > -1, true);
+
+console.log('\n--- exercicio sem carga usa so as repeticoes ---');
+confere('volume sem carga e a soma das reps',
+  rodar('volumeDoItem(' + JSON.stringify({ series: [{ reps: 15 }, { reps: 12 }] }) + ')'), 27);
+
+console.log('\n--- carga sempre igual nao quebra o desenho ---');
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoGraf('i1', '2026-09-01', 20, 10),
+  sessaoGraf('i2', '2026-09-03', 20, 10)
+]) + "; graficoModo = 'carga'; abrirHistorico('banco-scott');");
+painelGraf = rodar("document.getElementById('painel').innerHTML");
+confere('desenhou mesmo assim', painelGraf.indexOf('<polyline') > -1, true);
+confere('sem numero quebrado no meio do caminho',
+  /NaN|Infinity|undefined/.test(painelGraf), false);
+rodar('fecharHistorico();');
 
 
 /* volta o historico que o desenho da tela espera logo abaixo */
