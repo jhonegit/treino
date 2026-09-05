@@ -10,6 +10,3 @@ série e outra. Feito só para mim e para o meu celular.
 - Cronômetro de descanso, registro de desconforto e observação por exercício.
 - Funciona sem internet. Os dados ficam guardados no próprio aparelho, e dá
   para salvar um backup em arquivo.
-
-Ilustrações dos exercícios: banco público do wger.de, licença CC BY-SA.
-Os autores estão listados em CREDITOS.md.

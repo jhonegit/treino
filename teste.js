@@ -173,13 +173,13 @@ const faltando = rodar('banco.exercicios.map(e => e.ilustracao)')
   .filter(rel => !fs.existsSync(path + rel));
 confere('todo arquivo de imagem existe na pasta', faltando, []);
 confere('exercício sem foto própria mostra a ilustração',
-  rodar("imagemDoExercicio(acharExercicio('remada'))"), 'imagens/remada.png');
+  rodar("imagemDoExercicio(acharExercicio('remada'))"), 'imagens/remada.webp');
 rodar("garantirEquipamento(acharExercicio('remada')); salvarFoto('eq-remada','data:image/jpeg;base64,MINHAFOTO');");
 confere('a minha foto tem prioridade sobre a ilustração',
   rodar("imagemDoExercicio(acharExercicio('remada'))"), 'data:image/jpeg;base64,MINHAFOTO');
 rodar("apagarFoto('eq-remada');");
 confere('removida a foto, volta a ilustração',
-  rodar("imagemDoExercicio(acharExercicio('remada'))"), 'imagens/remada.png');
+  rodar("imagemDoExercicio(acharExercicio('remada'))"), 'imagens/remada.webp');
 
 console.log('\n--- banco antigo, salvo antes das imagens existirem ---');
 rodar("banco.exercicios.forEach(e => delete e.ilustracao); completarComSementes();");
@@ -255,7 +255,7 @@ rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 1; desenhar();");
 const tela = rodar("document.getElementById('conteudo').innerHTML");
 confere('lista preenchida', tela.length > 0, true);
 confere('mostra o botão de usar foto própria', tela.indexOf('Usar foto da minha academia') > -1, true);
-confere('mostra a ilustração no cartão aberto', tela.indexOf('imagens/supino-sentado.png') > -1, true);
+confere('mostra a ilustração no cartão aberto', tela.indexOf('imagens/supino-sentado.webp') > -1, true);
 confere('mostra a sugestão de carga', tela.indexOf('31 kg') > -1, true);
 rodar('confirmando = {tipo:"x", texto:"Testando?", botao:"Ok"}; desenhar();');
 confere('a confirmação aparece na tela',

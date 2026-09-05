@@ -34,26 +34,26 @@ const DADOS_INICIAIS = {
      nome aqui e o histórico continua colado nesse mesmo id.
      ----------------------------------------------------------- */
   exercicios: [
-    { id: "quadriceps-a",        nome: "Quadríceps do A (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-a.png", instrucoes: "Testar qual movimento não incomoda o joelho. Hack squat e sissy squat estão fora." },
-    { id: "supino-sentado",      nome: "Supino sentado",              equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-sentado.png", instrucoes: "" },
-    { id: "puxada-alta",         nome: "Pulley (puxada alta)",        equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxada-alta.png", instrucoes: "" },
-    { id: "flexora-sentada",     nome: "Flexora sentada",             equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/flexora-sentada.png", instrucoes: "" },
-    { id: "elevacao-lateral",    nome: "Elevação lateral",            equipamentoId: null, incrementoKg: 1,     ilustracao: "imagens/elevacao-lateral.png", instrucoes: "" },
-    { id: "banco-scott",         nome: "Banco Scott",                 equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/banco-scott.png", instrucoes: "" },
-    { id: "panturrilha",         nome: "Panturrilha",                 equipamentoId: null, incrementoKg: 1,     ilustracao: "imagens/panturrilha.png", instrucoes: "" },
+    { id: "quadriceps-a",        nome: "Quadríceps do A (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-a.webp", instrucoes: "Testar qual movimento não incomoda o joelho. Hack squat e sissy squat estão fora." },
+    { id: "supino-sentado",      nome: "Supino sentado",              equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-sentado.webp", instrucoes: "" },
+    { id: "puxada-alta",         nome: "Pulley (puxada alta)",        equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxada-alta.webp", instrucoes: "" },
+    { id: "flexora-sentada",     nome: "Flexora sentada",             equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/flexora-sentada.webp", instrucoes: "" },
+    { id: "elevacao-lateral",    nome: "Elevação lateral",            equipamentoId: null, incrementoKg: 1,     ilustracao: "imagens/elevacao-lateral.webp", instrucoes: "" },
+    { id: "banco-scott",         nome: "Banco Scott",                 equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/banco-scott.webp", instrucoes: "" },
+    { id: "panturrilha",         nome: "Panturrilha",                 equipamentoId: null, incrementoKg: 1,     ilustracao: "imagens/panturrilha.webp", instrucoes: "" },
 
-    { id: "romeno-halteres",     nome: "Levantamento romeno com halteres", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/romeno-halteres.png", instrucoes: "" },
-    { id: "supino-inclinado",    nome: "Supino inclinado",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-inclinado.png", instrucoes: "" },
-    { id: "remada",              nome: "Remada",                      equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/remada.png", instrucoes: "" },
-    { id: "extensora",           nome: "Extensora (só se confortável)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/extensora.png", instrucoes: "Se o joelho reclamar, pular e registrar o desconforto." },
-    { id: "desenvolvimento",     nome: "Desenvolvimento de ombros",   equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/desenvolvimento.png", instrucoes: "" },
-    { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia.png", instrucoes: "" },
-    { id: "tronco",              nome: "Exercício de tronco",         equipamentoId: null, incrementoKg: 0,   semCarga: true, ilustracao: "imagens/tronco.png", instrucoes: "" },
+    { id: "romeno-halteres",     nome: "Levantamento romeno com halteres", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/romeno-halteres.webp", instrucoes: "" },
+    { id: "supino-inclinado",    nome: "Supino inclinado",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-inclinado.webp", instrucoes: "" },
+    { id: "remada",              nome: "Remada",                      equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/remada.webp", instrucoes: "" },
+    { id: "extensora",           nome: "Extensora (só se confortável)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/extensora.webp", instrucoes: "Se o joelho reclamar, pular e registrar o desconforto." },
+    { id: "desenvolvimento",     nome: "Desenvolvimento de ombros",   equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/desenvolvimento.webp", instrucoes: "" },
+    { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia.webp", instrucoes: "" },
+    { id: "tronco",              nome: "Exercício de tronco",         equipamentoId: null, incrementoKg: 0,   semCarga: true, ilustracao: "imagens/tronco.webp", instrucoes: "" },
 
-    { id: "quadriceps-c",        nome: "Quadríceps do C (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-c.png", instrucoes: "Mesmo teste do Treino A, sem hack squat e sem sissy squat." },
-    { id: "pec-deck",            nome: "Pec deck (voador)",           equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/pec-deck.png", instrucoes: "" },
-    { id: "puxador-remada",      nome: "Puxador com remada",          equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxador-remada.png", instrucoes: "" },
-    { id: "rosca-ou-triceps",    nome: "Rosca ou tríceps",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/rosca-ou-triceps.png", instrucoes: "" }
+    { id: "quadriceps-c",        nome: "Quadríceps do C (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-c.webp", instrucoes: "Mesmo teste do Treino A, sem hack squat e sem sissy squat." },
+    { id: "pec-deck",            nome: "Pec deck (voador)",           equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/pec-deck.webp", instrucoes: "" },
+    { id: "puxador-remada",      nome: "Puxador com remada",          equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxador-remada.webp", instrucoes: "" },
+    { id: "rosca-ou-triceps",    nome: "Rosca ou tríceps",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/rosca-ou-triceps.webp", instrucoes: "" }
   ],
 
   /* -----------------------------------------------------------

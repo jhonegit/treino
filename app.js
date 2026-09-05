@@ -63,7 +63,9 @@ function completarComSementes() {
   DADOS_INICIAIS.exercicios.forEach(semente => {
     const meu = banco.exercicios.find(e => e.id === semente.id);
     if (!meu) { banco.exercicios.push(JSON.parse(JSON.stringify(semente))); mudou = true; return; }
-    if (!meu.ilustracao && semente.ilustracao) { meu.ilustracao = semente.ilustracao; mudou = true; }
+    // a ilustração pertence ao app, não a você: sempre segue as sementes.
+    // É o que troca os desenhos antigos pelos novos sem apagar histórico.
+    if (meu.ilustracao !== semente.ilustracao) { meu.ilustracao = semente.ilustracao; mudou = true; }
   });
 
   /* Mudança de versão dos dados. Cada número novo é uma correção que
@@ -880,9 +882,7 @@ function desenhar() {
     '<div class="linha-backup">' +
       '<button class="btn-pequeno" data-acao="backup">Salvar backup</button>' +
       '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
-    '</div>' +
-    // crédito das ilustrações: a licença delas exige dizer de onde vieram
-    '<div class="creditos">Ilustrações: wger.de e Everkinetic, licença CC BY-SA</div>';
+    '</div>';
 
   /* o campo de carga precisa receber o cursor depois de desenhado */
   if (editandoCarga !== null) {

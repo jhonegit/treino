@@ -460,14 +460,6 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
   #cronometro, #desfazer { max-width: 560px; margin: 0 auto; }
 }
 
-/* crédito das ilustrações, no pé da tela */
-.creditos {
-  margin-top: 14px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--marrom-claro);
-}
-
 /* dois botões de backup lado a lado, no pé */
 .linha-backup {
   display: flex;

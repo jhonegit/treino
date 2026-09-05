@@ -14,7 +14,7 @@
    embaixo. É isso que avisa o celular que existe coisa nova.
    ============================================================= */
 
-const CACHE = 'treino-v2';
+const CACHE = 'treino-v3';
 
 const ARQUIVOS = [
   './',
@@ -26,24 +26,24 @@ const ARQUIVOS = [
   './icones/icone-192.png',
   './icones/icone-512.png',
   './icones/icone-180.png',
-  './imagens/banco-scott.png',
-  './imagens/desenvolvimento.png',
-  './imagens/elevacao-lateral.png',
-  './imagens/extensora.png',
-  './imagens/flexora-sentada.png',
-  './imagens/panturrilha.png',
-  './imagens/pec-deck.png',
-  './imagens/puxada-alta.png',
-  './imagens/puxador-remada.png',
-  './imagens/quadriceps-a.png',
-  './imagens/quadriceps-c.png',
-  './imagens/remada.png',
-  './imagens/romeno-halteres.png',
-  './imagens/rosca-ou-triceps.png',
-  './imagens/supino-inclinado.png',
-  './imagens/supino-sentado.png',
-  './imagens/triceps-polia.png',
-  './imagens/tronco.png'
+  './imagens/banco-scott.webp',
+  './imagens/desenvolvimento.webp',
+  './imagens/elevacao-lateral.webp',
+  './imagens/extensora.webp',
+  './imagens/flexora-sentada.webp',
+  './imagens/panturrilha.webp',
+  './imagens/pec-deck.webp',
+  './imagens/puxada-alta.webp',
+  './imagens/puxador-remada.webp',
+  './imagens/quadriceps-a.webp',
+  './imagens/quadriceps-c.webp',
+  './imagens/remada.webp',
+  './imagens/romeno-halteres.webp',
+  './imagens/rosca-ou-triceps.webp',
+  './imagens/supino-inclinado.webp',
+  './imagens/supino-sentado.webp',
+  './imagens/triceps-polia.webp',
+  './imagens/tronco.webp'
 ];
 
 /* 1. INSTALAR: copiar tudo para dentro do celular. */
