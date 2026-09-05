@@ -122,6 +122,7 @@ let confirmando = null;    // pergunta de sim ou não aberta na tela
 let editandoCarga = null;  // índice do exercício com o campo de carga aberto
 let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
+let historicoAberto = null;         // id do exercício com o histórico na tela
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -196,7 +197,7 @@ function execucoesDe(exercicioId) {
   banco.sessoes.forEach(s => {
     s.itens.forEach(item => {
       if (item.exercicioId === exercicioId && item.series.length > 0) {
-        achados.push({ data: s.data, item: item });
+        achados.push({ data: s.data, estado: s.estado, item: item });
       }
     });
   });
@@ -438,6 +439,16 @@ function concluirExercicio(i) {
   desenhar();
   window.scrollTo({ top: 0, behavior: 'smooth' });   // window.scrollTo [navegador]
   mostrarFaixa('Exercício concluído', true);
+}
+
+function abrirHistorico(exercicioId) {
+  historicoAberto = exercicioId;
+  desenhar();
+}
+
+function fecharHistorico() {
+  historicoAberto = null;
+  desenhar();
 }
 
 function abrirCartao(i) {
@@ -823,6 +834,7 @@ function desenhar() {
   if (perguntarSobrePendente) {
     document.getElementById('conteudo').innerHTML = desenharConfirmacao() + desenharAviso();
     document.getElementById('rodape').innerHTML = '';
+    desenharHistorico();
     return;
   }
 
@@ -841,11 +853,62 @@ function desenhar() {
       '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
     '</div>';
 
+  desenharHistorico();
+
   /* o campo de carga precisa receber o cursor depois de desenhado */
   if (editandoCarga !== null) {
     const campo = document.querySelector('[data-campo="carga"]');  // querySelector [navegador]
     if (campo) { campo.focus(); campo.select(); }
   }
+}
+
+/* Painel do histórico: sobe por cima da tela, sem tirar você do treino.
+   Ele fica ABAIXO da barra do cronômetro de propósito, para você poder
+   olhar o histórico enquanto o descanso corre. */
+function desenharHistorico() {
+  const caixa = document.getElementById('historico');
+  if (!historicoAberto) { caixa.classList.add('oculto'); return; }
+
+  const exercicio = acharExercicio(historicoAberto);
+  const feitos = execucoesDe(historicoAberto);
+
+  /* resumo de uma linha */
+  const cargas = feitos.map(f => cargaDoItem(f.item)).filter(c => c !== null);
+  const maior = cargas.length ? Math.max.apply(null, cargas) : null;   // Math.max [nativo]
+  const resumo = feitos.length + (feitos.length === 1 ? ' sessão' : ' sessões') +
+    (maior !== null ? ' · maior carga ' + numero(maior) + ' kg' : '');
+
+  const linhas = feitos.map(f => {
+    const carga = cargaDoItem(f.item);
+    const rir = rirDoItem(f.item);
+    const d = f.item.desconforto || {};
+    const regioes = (d.regioes || []).join(', ');
+    return '<div class="sessao">' +
+      '<div class="dia">' + dataCurta(f.data) + '</div>' +
+      '<div class="detalhe">' +
+        '<div class="linha-carga">' +
+          (carga !== null ? '<b>' + numero(carga) + ' kg</b> · ' : '') +
+          f.item.series.map(x => x.reps).join(' · ') + ' reps' +
+          (rir !== null ? ' <span class="marca">RIR ' + rir + '</span>' : '') +
+          (f.estado === 'incompleta' ? ' <span class="marca">treino incompleto</span>' : '') +
+        '</div>' +
+        (d.nivel && d.nivel !== 'sem'
+          ? '<div class="extra">desconforto ' + esc(d.nivel) + (regioes ? ' · ' + esc(regioes) : '') + '</div>'
+          : '') +
+        (f.item.observacao ? '<div class="obs">' + esc(f.item.observacao) + '</div>' : '') +
+      '</div></div>';
+  }).join('');
+
+  caixa.classList.remove('oculto');
+  caixa.innerHTML =
+    '<div class="topo-historico">' +
+      '<div><h2>' + esc(exercicio.nome) + '</h2>' +
+      '<div class="resumo-historico">' + resumo + '</div></div>' +
+      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-historico">' +
+      (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
+    '</div>';
 }
 
 /* Faixa marrom de sim ou não, no lugar da caixinha do navegador. */
@@ -917,10 +980,12 @@ function desenharCartao(itemDoTreino, i) {
     const a = anteriores[0];
     const carga = cargaDoItem(a.item);
     const rir = rirDoItem(a.item);
-    html += '<div class="ultima-vez">Última vez (' + dataCurta(a.data) + '): <b>' +
+    html += '<div class="ultima-vez tocavel" data-acao="ver-historico" data-id="' + item.exercicioId + '">' +
+      '<div>Última vez (' + dataCurta(a.data) + '): <b>' +
       (carga !== null ? numero(carga) + ' kg · ' : '') +
       a.item.series.map(s => s.reps).join('/') + '</b>' +
-      (rir !== null ? ' · RIR ' + rir : '') + '</div>';
+      (rir !== null ? ' · RIR ' + rir : '') + '</div>' +
+      '<div class="ver-tudo">ver tudo</div></div>';
   } else {
     html += '<div class="ultima-vez">Primeira vez neste exercício.</div>';
   }
@@ -1048,6 +1113,8 @@ document.addEventListener('click', function (evento) {
 
   switch (acao) {
     case 'abrir-cartao':       abrirCartao(i); break;
+    case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
+    case 'fechar-historico':   fecharHistorico(); break;
 
     case 'carga-mais':         ajustarCarga(i, +1); break;
     case 'carga-menos':        ajustarCarga(i, -1); break;

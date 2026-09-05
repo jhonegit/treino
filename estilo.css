@@ -480,3 +480,113 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
   font-size: 18px;
   font-weight: 700;
 }
+
+/* ---------- linha "última vez", que abre o histórico ---------- */
+
+.ultima-vez.tocavel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.ver-tudo {
+  flex: none;
+  color: var(--laranja-escuro);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+.ver-tudo::after { content: " ›"; font-size: 17px; }
+
+/* ---------- painel do histórico ---------- */
+
+#historico {
+  position: fixed;
+  inset: 0;                 /* cobre a tela inteira */
+  background: var(--fundo-morno);
+  z-index: 8;               /* abaixo do cronômetro, que é 10 */
+  overflow-y: auto;
+  padding-bottom: 140px;    /* espaço para a barra do cronômetro */
+}
+
+.topo-historico {
+  position: sticky;
+  top: 0;
+  background: var(--laranja);
+  color: #fff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.topo-historico h2 { margin: 0; font-size: 21px; line-height: 1.15; }
+
+.topo-historico button {
+  background: #fff;
+  color: var(--laranja-escuro);
+  border-color: #fff;
+  flex: none;
+}
+
+.resumo-historico { font-size: 13px; color: #ffe6db; margin-top: 4px; }
+
+.lista-historico { padding: 12px; }
+
+.sessao {
+  display: flex;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.sessao .dia {
+  flex: none;
+  width: 52px;
+  color: var(--marrom-claro);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.sessao .detalhe { flex: 1; }
+
+.linha-carga {
+  font-size: 17px;
+  color: var(--marrom);
+  font-variant-numeric: tabular-nums;
+}
+
+.linha-carga b { font-size: 19px; }
+
+.marca {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fundo-morno);
+  border: 1px solid var(--borda-forte);
+  color: var(--marrom-medio);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sessao .extra { margin-top: 6px; font-size: 14px; color: var(--perigo); }
+
+.sessao .obs {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--marrom-medio);
+  font-style: italic;
+}
+
+.vazio { text-align: center; color: var(--marrom-claro); padding: 30px 10px; }

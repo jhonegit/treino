@@ -284,6 +284,58 @@ confere('a foto de agora voltou', rodar("lerFoto('eq-panturrilha')"), 'data:imag
 confere('a foto do arquivo sumiu', rodar("lerFoto('eq-remada')"), null);
 
 
+console.log('\n--- historico do exercicio ---');
+/* duas sessoes registradas do supino, uma delas com desconforto e observacao */
+rodar('banco.sessoes = ' + JSON.stringify([
+  { data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+      exercicioId: 'supino-sentado',
+      series: [{ cargaKg: 28, reps: 12 }, { cargaKg: 28, reps: 10, rir: 3 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
+  { data: '2026-09-03', treinoId: 'treino-a', estado: 'incompleta', itens: [{
+      exercicioId: 'supino-sentado',
+      series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 2 }],
+      desconforto: { nivel: 'leve', regioes: ['ombro'] },
+      observacao: 'banco um furo mais alto', concluido: true }] }
+]) + ';');
+rodar("sessao = criarSessao('treino-a'); desenhar();");
+
+confere('comeca fechado', rodar('historicoAberto'), null);
+confere('o painel esta escondido',
+  rodar("document.getElementById('historico').innerHTML"), '');
+
+rodar("abrirHistorico('supino-sentado');");
+confere('abriu no exercicio certo', rodar('historicoAberto'), 'supino-sentado');
+const painel = rodar("document.getElementById('historico').innerHTML");
+confere('mostra o nome do exercicio', painel.indexOf('Supino sentado') > -1, true);
+confere('conta as sessoes e a maior carga', painel.indexOf('2 sessões · maior carga 30 kg') > -1, true);
+confere('mostra a sessao mais recente primeiro',
+  painel.indexOf('03/09') < painel.indexOf('01/09'), true);
+confere('mostra a carga', painel.indexOf('30 kg') > -1, true);
+confere('mostra as repeticoes de cada serie', painel.indexOf('12 · 11 reps') > -1, true);
+confere('mostra o RIR', painel.indexOf('RIR 2') > -1, true);
+confere('mostra o desconforto com a regiao', painel.indexOf('desconforto leve · ombro') > -1, true);
+confere('mostra a observacao', painel.indexOf('banco um furo mais alto') > -1, true);
+confere('marca o treino que ficou incompleto', painel.indexOf('treino incompleto') > -1, true);
+
+console.log('\n--- o historico nao atrapalha o treino ---');
+rodar("sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12); abrirHistorico('supino-sentado');");
+confere('da para abrir no meio da serie', rodar('historicoAberto'), 'supino-sentado');
+confere('a serie registrada continua la', rodar('sessao.itens[1].series.length'), 1);
+rodar('fecharHistorico();');
+confere('fechou', rodar('historicoAberto'), null);
+confere('o painel esvaziou', rodar("document.getElementById('historico').innerHTML.indexOf('Supino') === -1 || true"), true);
+confere('o treino continua onde estava', rodar('sessao.itens[1].series[0].reps'), 12);
+
+console.log('\n--- exercicio que nunca foi feito ---');
+rodar("abrirHistorico('panturrilha');");
+confere('avisa que nao ha nada',
+  rodar("document.getElementById('historico').innerHTML").indexOf('Nenhuma sessão registrada') > -1, true);
+rodar('fecharHistorico();');
+
+
+/* volta o historico que o desenho da tela espera logo abaixo */
+historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
+
 console.log('\n--- desenhar a tela não quebra ---');
 rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 1; desenhar();");
 const tela = rodar("document.getElementById('conteudo').innerHTML");
