@@ -119,6 +119,8 @@ let editandoCarga = null;  // índice do exercício com o campo de carga aberto
 let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
 let itemDaFoto = null;     // índice do exercício esperando uma foto
+let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
+let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
 let relogioId = null;      // identificador do setInterval do cronômetro
 let desfazerId = null;     // identificador do sumiço da faixa
@@ -490,6 +492,7 @@ function executarConfirmacao() {
   if (!pedido) return;
   if (pedido.tipo === 'trocar')          return trocarTreino(pedido.destino);
   if (pedido.tipo === 'concluir-treino') return arquivarSessao('concluida');
+  if (pedido.tipo === 'restaurar')       return restaurarBackup();
   if (pedido.tipo === 'descartar') {
     apagarSessaoSalva();
     perguntarSobrePendente = false;
@@ -508,7 +511,13 @@ function exportarBackup() {
     const foto = lerFoto(eq.id);
     if (foto) fotos[eq.id] = foto;
   });
-  const tudo = { banco: banco, sessaoAtual: lerSessaoSalva(), fotos: fotos };
+  const tudo = {
+    app: 'treino',
+    salvoEm: new Date().toISOString(),
+    banco: banco,
+    sessaoAtual: lerSessaoSalva(),
+    fotos: fotos
+  };
   const arquivo = new Blob([JSON.stringify(tudo, null, 2)], { type: 'application/json' });
   const endereco = URL.createObjectURL(arquivo);
   const link = document.createElement('a');
@@ -517,6 +526,114 @@ function exportarBackup() {
   link.click();
   URL.revokeObjectURL(endereco);
   mostrarFaixa('Backup salvo na pasta de downloads', false);
+}
+
+
+/* ---------- restaurar um backup ---------- */
+
+/* Abre a busca de arquivos do celular. É tela do sistema, não pop up. */
+function pedirBackup() {
+  document.getElementById('arquivo-backup').click();
+}
+
+/* Confere se o arquivo escolhido é mesmo um backup deste app antes de
+   deixar qualquer coisa acontecer. */
+function conferirBackup(texto) {
+  let dados;
+  try { dados = JSON.parse(texto); } catch (erro) { return null; }
+  if (!dados || typeof dados !== 'object') return null;
+  const b = dados.banco;
+  if (!b || !Array.isArray(b.exercicios) || !Array.isArray(b.treinos) || !Array.isArray(b.sessoes)) return null;
+  return dados;
+}
+
+/* Lê o arquivo e monta a pergunta na tela, com o que tem dentro dele.
+   Nada é substituído antes de você confirmar. */
+function lerArquivoDeBackup(arquivo) {
+  if (!arquivo) return;
+  const leitor = new FileReader();          // FileReader [navegador]
+  leitor.onload = function () {
+    const dados = conferirBackup(leitor.result);
+    if (!dados) {
+      mostrarFaixa('Esse arquivo não é um backup do Treino', false);
+      return;
+    }
+    backupParaRestaurar = dados;
+    const quantasFotos = dados.fotos ? Object.keys(dados.fotos).length : 0;  // Object.keys [nativo]
+    confirmando = {
+      tipo: 'restaurar',
+      texto: 'Backup ' + (dados.salvoEm ? 'de ' + dataCurta(dados.salvoEm.slice(0, 10)) : 'sem data') +
+             ', com ' + dados.banco.sessoes.length + ' treinos registrados e ' +
+             quantasFotos + (quantasFotos === 1 ? ' foto' : ' fotos') +
+             '. Restaurar apaga o que está no app agora e põe isso no lugar.',
+      botao: 'Restaurar'
+    };
+    desenhar();
+  };
+  leitor.readAsText(arquivo);
+}
+
+/* Todas as chaves de foto guardadas hoje. localStorage.key e .length
+   [navegador] servem justamente para varrer a gaveta. */
+function chavesDeFoto() {
+  const chaves = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.indexOf(CHAVE_FOTO) === 0) chaves.push(chave);
+  }
+  return chaves;
+}
+
+/* Uma cópia de tudo que está no app agora, guardada só na memória.
+   É o que o botão Desfazer usa depois de uma restauração. */
+function retratoDeAgora() {
+  const fotos = {};
+  chavesDeFoto().forEach(chave => { fotos[chave] = localStorage.getItem(chave); });
+  return {
+    banco: JSON.parse(JSON.stringify(banco)),
+    sessaoAtual: lerSessaoSalva(),
+    fotos: fotos
+  };
+}
+
+function aplicarEstado(estado, fotosComPrefixo) {
+  banco = JSON.parse(JSON.stringify(estado.banco));
+  salvarBanco();
+
+  chavesDeFoto().forEach(chave => localStorage.removeItem(chave));
+  Object.keys(cacheDeFotos).forEach(id => delete cacheDeFotos[id]);
+  const fotos = estado.fotos || {};
+  Object.keys(fotos).forEach(nome => {
+    // no arquivo de backup a chave é o id do aparelho; no retrato da
+    // memória ela já vem com o prefixo. Os dois casos caem aqui.
+    const chave = fotosComPrefixo ? nome : CHAVE_FOTO + nome;
+    try { localStorage.setItem(chave, fotos[nome]); } catch (erro) { /* sem espaço */ }
+  });
+
+  if (estado.sessaoAtual) {
+    sessao = estado.sessaoAtual;
+    localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
+    perguntarSobrePendente = sessaoPrecisaDeDecisao(sessao);
+  } else {
+    apagarSessaoSalva();
+    perguntarSobrePendente = false;
+    sessao = criarSessao(proximoTreinoId());
+  }
+  completarComSementes();
+}
+
+function restaurarBackup() {
+  const backup = backupParaRestaurar;
+  backupParaRestaurar = null;
+  if (!backup) return;
+
+  estadoAntesDaRestauracao = retratoDeAgora();
+  aplicarEstado(backup, false);
+
+  ultimaAcao = { tipo: 'restaurar' };
+  pararDescanso();
+  desenhar();
+  mostrarFaixa('Backup restaurado', true);
 }
 
 
@@ -539,6 +656,18 @@ function esconderFaixa() {
 
 function desfazer() {
   if (!ultimaAcao) return esconderFaixa();
+
+  /* desfazer uma restauração: volta o retrato guardado na memória */
+  if (ultimaAcao.tipo === 'restaurar') {
+    if (estadoAntesDaRestauracao) {
+      aplicarEstado(estadoAntesDaRestauracao, true);
+      estadoAntesDaRestauracao = null;
+    }
+    esconderFaixa();
+    desenhar();
+    return;
+  }
+
   const item = sessao.itens[ultimaAcao.i];
   if (ultimaAcao.tipo === 'serie') {
     item.series.pop();          // pop [nativo]: tira o último da lista
@@ -748,8 +877,9 @@ function desenhar() {
     (sessaoTemRegistro(sessao)
       ? '<button class="btn-largo btn-laranja" data-acao="concluir-treino">Concluir treino</button>'
       : '') +
-    '<div style="margin-top:10px;text-align:center">' +
+    '<div class="linha-backup">' +
       '<button class="btn-pequeno" data-acao="backup">Salvar backup</button>' +
+      '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
     '</div>' +
     // crédito das ilustrações: a licença delas exige dizer de onde vieram
     '<div class="creditos">Ilustrações: wger.de e Everkinetic, licença CC BY-SA</div>';
@@ -993,10 +1123,11 @@ document.addEventListener('click', function (evento) {
     case 'trocar-treino':      pedirTrocaDeTreino(); break;
     case 'concluir-treino':    pedirConclusaoDoTreino(); break;
     case 'confirmar':          executarConfirmacao(); break;
-    case 'cancelar':           confirmando = null; desenhar(); break;
+    case 'cancelar':           confirmando = null; backupParaRestaurar = null; desenhar(); break;
 
     case 'desfazer':           desfazer(); break;
     case 'backup':             exportarBackup(); break;
+    case 'restaurar':          pedirBackup(); break;
 
     case 'mais-tempo':         if (cron) { cron.fim += 30000; cron.avisou = false; pintarCronometro(); } break;
     case 'pular-descanso':     pararDescanso(); break;
@@ -1036,6 +1167,12 @@ document.addEventListener('keydown', function (evento) {
 document.getElementById('arquivo-foto').addEventListener('change', function (evento) {
   receberFoto(evento.target.files[0]);
   evento.target.value = '';   // limpa, para dar para escolher a mesma foto de novo
+});
+
+/* Arquivo de backup escolhido na busca de arquivos. */
+document.getElementById('arquivo-backup').addEventListener('change', function (evento) {
+  lerArquivoDeBackup(evento.target.files[0]);
+  evento.target.value = '';   // limpa, para dar para escolher o mesmo arquivo de novo
 });
 
 /* Se o celular bloquear ou você trocar de app, grava na hora.

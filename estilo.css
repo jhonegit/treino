@@ -467,3 +467,13 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
   font-size: 11px;
   color: var(--marrom-claro);
 }
+
+/* dois botões de backup lado a lado, no pé */
+.linha-backup {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.linha-backup button { flex: 1; max-width: 190px; }

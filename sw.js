@@ -14,7 +14,7 @@
    embaixo. É isso que avisa o celular que existe coisa nova.
    ============================================================= */
 
-const CACHE = 'treino-v1';
+const CACHE = 'treino-v2';
 
 const ARQUIVOS = [
   './',
