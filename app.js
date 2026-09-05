@@ -8,7 +8,7 @@
      4. REGRAS          progressão dupla e afins, decididas por nós
      5. AÇÕES           o que acontece quando você toca em algo
      6. CRONÔMETRO
-     7. FOTOS           foto do aparelho, tirada na hora
+     7. IMAGENS         o desenho de cada exercício
      8. DESENHO         transforma o estado em tela
      9. TOQUES          liga os botões às ações
     10. INÍCIO
@@ -66,6 +66,8 @@ function completarComSementes() {
     // a ilustração pertence ao app, não a você: sempre segue as sementes.
     // É o que troca os desenhos antigos pelos novos sem apagar histórico.
     if (meu.ilustracao !== semente.ilustracao) { meu.ilustracao = semente.ilustracao; mudou = true; }
+    if (meu.nome !== semente.nome) { meu.nome = semente.nome; mudou = true; }
+    if (!!meu.emTeste !== !!semente.emTeste) { meu.emTeste = !!semente.emTeste; mudou = true; }
   });
 
   /* Mudança de versão dos dados. Cada número novo é uma correção que
@@ -120,7 +122,6 @@ let confirmando = null;    // pergunta de sim ou não aberta na tela
 let editandoCarga = null;  // índice do exercício com o campo de carga aberto
 let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
-let itemDaFoto = null;     // índice do exercício esperando uma foto
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -131,7 +132,6 @@ const RIR_MINIMO_PARA_SUBIR = 2;   // folga mínima para a sessão contar
 const RIR_CARGA_LEVE        = 4;   // daqui para cima, uma sessão só já basta
 const SESSOES_NO_TOPO       = 2;   // duas sessões seguidas
 const HORAS_ATE_PERGUNTAR   = 4;   // depois disso, o app pergunta o que fazer
-const LARGURA_DA_FOTO       = 700; // a foto é reduzida antes de ser guardada
 
 const REGIOES = ['joelho', 'ombro', 'cotovelo', 'quadril', 'coluna', 'punho'];
 const NIVEIS  = [
@@ -749,14 +749,15 @@ function pintarCronometro() {
 
 
 /* =============================================================
-   7. FOTOS
-   A foto pertence ao EQUIPAMENTO, não ao exercício, porque a mesma
-   máquina serve a vários exercícios. Enquanto não existe a tela de
-   equipamentos, o app cria um aparelho automático na primeira foto.
+   7. IMAGENS
+   Cada exercício tem o seu desenho, que veio junto com o app pelo
+   campo ilustracao das sementes.
 
-   Cada foto fica numa chave própria do localStorage, separada do
-   resto. Assim o arquivo principal não engorda e, se faltar espaço,
-   o problema fica só na foto.
+   O app também sabe mostrar foto guardada por aparelho, e ela passa
+   na frente do desenho. Não existe mais botão para tirar foto: essas
+   funções ficaram só para ler o que já existe e para o backup. A foto
+   pertence ao EQUIPAMENTO, não ao exercício, porque a mesma máquina
+   serve a vários exercícios.
    ============================================================= */
 
 const cacheDeFotos = {};   // evita reler o mesmo texto grande a cada desenho
@@ -786,26 +787,6 @@ function apagarFoto(equipamentoId) {
   cacheDeFotos[equipamentoId] = null;
 }
 
-/* Todo exercício com foto precisa de um aparelho. Se ainda não tem,
-   este é criado com o nome do próprio exercício. Depois, na tela de
-   equipamentos, dá para juntar dois exercícios no mesmo aparelho. */
-function garantirEquipamento(exercicio) {
-  if (exercicio.equipamentoId) {
-    const achado = acharEquipamento(exercicio.equipamentoId);
-    if (achado) return achado;
-  }
-  const equipamento = {
-    id: 'eq-' + exercicio.id,
-    nome: exercicio.nome,
-    observacoes: '',
-    ajustes: []
-  };
-  banco.equipamentos.push(equipamento);
-  exercicio.equipamentoId = equipamento.id;
-  salvarBanco();
-  return equipamento;
-}
-
 /* A foto que VOCÊ tirou do aparelho da sua academia. */
 function fotoDoExercicio(exercicio) {
   return lerFoto(exercicio.equipamentoId);
@@ -816,53 +797,6 @@ function fotoDoExercicio(exercicio) {
 function imagemDoExercicio(exercicio) {
   return fotoDoExercicio(exercicio) || exercicio.ilustracao || null;
 }
-
-/* Abre a câmera ou a galeria. click() num input escondido [navegador]:
-   quem aparece é a tela do próprio celular, não um pop up do site. */
-function pedirFoto(i) {
-  itemDaFoto = i;
-  document.getElementById('arquivo-foto').click();
-}
-
-/* Reduz a foto antes de guardar. Uma foto de celular tem 4 MB; depois
-   de reduzida para 700 pixels de largura fica com uns 60 KB, e o
-   navegador aguenta guardar as 18 do treino inteiro.
-   FileReader, Image e canvas [navegador]. */
-function receberFoto(arquivo) {
-  const i = itemDaFoto;
-  itemDaFoto = null;
-  if (!arquivo || i === null) return;
-
-  const leitor = new FileReader();
-  leitor.onload = function () {
-    const imagem = new Image();
-    imagem.onload = function () {
-      const escala = Math.min(1, LARGURA_DA_FOTO / imagem.width);
-      const tela = document.createElement('canvas');
-      tela.width  = Math.round(imagem.width  * escala);
-      tela.height = Math.round(imagem.height * escala);
-      tela.getContext('2d').drawImage(imagem, 0, 0, tela.width, tela.height);
-      const reduzida = tela.toDataURL('image/jpeg', 0.7);
-
-      const exercicio = acharExercicio(sessao.itens[i].exercicioId);
-      const equipamento = garantirEquipamento(exercicio);
-      if (salvarFoto(equipamento.id, reduzida)) {
-        desenhar();
-        mostrarFaixa('Foto guardada', false);
-      }
-    };
-    imagem.src = leitor.result;
-  };
-  leitor.readAsDataURL(arquivo);
-}
-
-function removerFoto(i) {
-  const exercicio = acharExercicio(sessao.itens[i].exercicioId);
-  if (exercicio.equipamentoId) apagarFoto(exercicio.equipamentoId);
-  desenhar();
-  mostrarFaixa('Foto removida', false);
-}
-
 
 /* =============================================================
    8. DESENHO
@@ -944,7 +878,6 @@ function desenharCartao(itemDoTreino, i) {
   const exercicio = acharExercicio(item.exercicioId);
   const aberto = sessao.itemAberto === i;
   const imagem = imagemDoExercicio(exercicio);
-  const fotoPropria = !!fotoDoExercicio(exercicio);
 
   const prescricao = itemDoTreino.series + ' x ' + itemDoTreino.repMin + '-' + itemDoTreino.repMax;
 
@@ -961,6 +894,7 @@ function desenharCartao(itemDoTreino, i) {
       '<div class="numero">' + (i + 1) + '</div>' +
       (imagem && !aberto ? '<img class="miniatura" src="' + imagem + '" alt="">' : '') +
       '<div class="nome-exercicio">' + esc(exercicio.nome) +
+        (exercicio.emTeste ? ' <span class="selo">em teste</span>' : '') +
         '<div class="prescricao">' + prescricao + ' · ' + itemDoTreino.descansoSeg + 's</div>' +
       '</div>' +
       '<div class="resumo' + (item.concluido ? ' feito' : '') + '">' +
@@ -972,22 +906,9 @@ function desenharCartao(itemDoTreino, i) {
 
   html += '<div class="corpo-cartao">';
 
-  /* imagem: a sua foto do aparelho, ou o desenho que veio com o app */
+  /* o desenho do exercício, sem botão nenhum: nada para tocar aqui */
   if (imagem) {
-    html += '<img class="foto" src="' + imagem + '" alt="' + esc(exercicio.nome) + '">' +
-      '<div class="acoes-foto">' +
-        '<button class="btn-pequeno" data-acao="foto-trocar" data-i="' + i + '">' +
-          (fotoPropria ? 'Trocar foto' : 'Usar foto da minha academia') + '</button>' +
-        (fotoPropria
-          ? '<button class="btn-pequeno btn-perigo" data-acao="foto-remover" data-i="' + i + '">Remover</button>'
-          : '') +
-      '</div>';
-  } else {
-    html += '<div class="sem-foto">Sem imagem ainda</div>' +
-      '<div class="acoes-foto">' +
-        '<button class="btn-pequeno btn-marrom btn-largo" data-acao="foto-trocar" data-i="' + i + '">' +
-          'Adicionar foto do aparelho</button>' +
-      '</div>';
+    html += '<img class="foto" src="' + imagem + '" alt="' + esc(exercicio.nome) + '">';
   }
 
   /* última vez */
@@ -1143,9 +1064,6 @@ document.addEventListener('click', function (evento) {
     case 'regiao':             alternarRegiao(i, valor); break;
     case 'concluir-exercicio': concluirExercicio(i); break;
 
-    case 'foto-trocar':        pedirFoto(i); break;
-    case 'foto-remover':       removerFoto(i); break;
-
     case 'trocar-treino':      pedirTrocaDeTreino(); break;
     case 'concluir-treino':    pedirConclusaoDoTreino(); break;
     case 'confirmar':          executarConfirmacao(); break;
@@ -1187,12 +1105,6 @@ document.addEventListener('keydown', function (evento) {
     evento.preventDefault();
     fecharCampoDeCarga();
   }
-});
-
-/* Foto escolhida na câmera ou na galeria. */
-document.getElementById('arquivo-foto').addEventListener('change', function (evento) {
-  receberFoto(evento.target.files[0]);
-  evento.target.value = '';   // limpa, para dar para escolher a mesma foto de novo
 });
 
 /* Arquivo de backup escolhido na busca de arquivos. */

@@ -110,21 +110,33 @@ rodar('pedirConclusaoDoTreino(); executarConfirmacao();');
 confere('agora vem o B', rodar('proximoTreinoId()'), 'treino-b');
 confere('sessão nova já é do B', rodar('sessao.treinoId'), 'treino-b');
 
-console.log('\n--- foto do aparelho ---');
+console.log('\n--- foto guardada (sem botao de tirar) ---');
 rodar("sessao = criarSessao('treino-a');");
-const eq = rodar("garantirEquipamento(acharExercicio('supino-sentado')).id");
-confere('criou o aparelho do supino', eq, 'eq-supino-sentado');
-confere('o exercício passou a apontar para o aparelho',
-  rodar("acharExercicio('supino-sentado').equipamentoId"), 'eq-supino-sentado');
+confere('nao existe mais funcao de tirar foto', rodar('typeof pedirFoto'), 'undefined');
+confere('nem de receber o arquivo da camera', rodar('typeof receberFoto'), 'undefined');
 rodar("salvarFoto('eq-supino-sentado', 'data:image/jpeg;base64,FOTO');");
-confere('foto guardada e lida de volta',
+rodar("acharExercicio('supino-sentado').equipamentoId = 'eq-supino-sentado';");
+confere('foto guardada continua sendo lida',
   rodar("fotoDoExercicio(acharExercicio('supino-sentado'))"), 'data:image/jpeg;base64,FOTO');
-confere('foto fica em chave separada',
-  rodar("localStorage.getItem('treino.foto.eq-supino-sentado')"), 'data:image/jpeg;base64,FOTO');
-confere('exercício sem foto devolve nada',
-  rodar("fotoDoExercicio(acharExercicio('panturrilha'))"), null);
+confere('e passa na frente do desenho',
+  rodar("imagemDoExercicio(acharExercicio('supino-sentado'))"), 'data:image/jpeg;base64,FOTO');
 rodar("apagarFoto('eq-supino-sentado');");
-confere('foto removida', rodar("fotoDoExercicio(acharExercicio('supino-sentado'))"), null);
+confere('sem foto, volta o desenho',
+  rodar("imagemDoExercicio(acharExercicio('supino-sentado'))"), 'imagens/supino-sentado.webp');
+const telaSemBotao = rodar("sessao.itemAberto = 1; desenhar(); document.getElementById('conteudo').innerHTML");
+confere('o cartao nao tem mais botao de foto', telaSemBotao.indexOf('foto-trocar') === -1, true);
+
+console.log('\n--- exercicios em teste ---');
+confere('o do treino A trocou de nome', rodar("acharExercicio('quadriceps-a').nome"), 'Agachamento no Smith');
+confere('o do treino C trocou de nome', rodar("acharExercicio('quadriceps-c').nome"), 'Agachamento Goblet');
+confere('os dois estao marcados como em teste',
+  rodar("[acharExercicio('quadriceps-a').emTeste, acharExercicio('quadriceps-c').emTeste]"), [true, true]);
+confere('o id nao mudou, entao o historico continua colado',
+  rodar("acharTreino('treino-a').itens[0].exercicioId"), 'quadriceps-a');
+rodar("sessao.itemAberto = 0; desenhar();");
+confere('o selo aparece na tela',
+  rodar("document.getElementById('conteudo').innerHTML").indexOf('em teste') > -1, true);
+
 
 console.log('\n--- progressao: caminho normal (duas sessoes) ---');
 function historico(lista) { rodar('banco.sessoes = ' + JSON.stringify(lista) + ';'); }
@@ -196,7 +208,7 @@ const faltando = rodar('banco.exercicios.map(e => e.ilustracao)')
 confere('todo arquivo de imagem existe na pasta', faltando, []);
 confere('exercício sem foto própria mostra a ilustração',
   rodar("imagemDoExercicio(acharExercicio('remada'))"), 'imagens/remada.webp');
-rodar("garantirEquipamento(acharExercicio('remada')); salvarFoto('eq-remada','data:image/jpeg;base64,MINHAFOTO');");
+rodar("acharExercicio('remada').equipamentoId = 'eq-remada'; salvarFoto('eq-remada','data:image/jpeg;base64,MINHAFOTO');");
 confere('a minha foto tem prioridade sobre a ilustração',
   rodar("imagemDoExercicio(acharExercicio('remada'))"), 'data:image/jpeg;base64,MINHAFOTO');
 rodar("apagarFoto('eq-remada');");
@@ -276,7 +288,7 @@ console.log('\n--- desenhar a tela não quebra ---');
 rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 1; desenhar();");
 const tela = rodar("document.getElementById('conteudo').innerHTML");
 confere('lista preenchida', tela.length > 0, true);
-confere('mostra o botão de usar foto própria', tela.indexOf('Usar foto da minha academia') > -1, true);
+confere('nao tem mais botao de foto no cartao', tela.indexOf('Usar foto da minha academia') === -1, true);
 confere('mostra a ilustração no cartão aberto', tela.indexOf('imagens/supino-sentado.webp') > -1, true);
 confere('mostra a sugestão de carga', tela.indexOf('31 kg') > -1, true);
 rodar('confirmando = {tipo:"x", texto:"Testando?", botao:"Ok"}; desenhar();');

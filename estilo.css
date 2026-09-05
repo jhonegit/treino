@@ -214,18 +214,21 @@ button:active { transform: scale(0.97); }
 /* na miniatura o corte é proposital: só precisa dar a pista visual */
 .miniatura { background: #fff; }
 
-.sem-foto {
-  margin-top: 14px;
-  border: 1px dashed var(--borda-forte);
-  border-radius: 12px;
-  padding: 18px;
-  text-align: center;
-  color: var(--marrom-claro);
-  font-size: 15px;
+/* selo de exercício que ainda está sendo testado */
+.selo {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--laranja-fundo);
+  border: 1px solid var(--laranja);
+  color: var(--laranja-escuro);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
 }
-
-.acoes-foto { display: flex; gap: 8px; margin-top: 8px; }
-.acoes-foto button { flex: 1; }
 
 /* ---------- última vez e sugestão ---------- */
 

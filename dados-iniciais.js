@@ -34,7 +34,7 @@ const DADOS_INICIAIS = {
      nome aqui e o histórico continua colado nesse mesmo id.
      ----------------------------------------------------------- */
   exercicios: [
-    { id: "quadriceps-a",        nome: "Quadríceps do A (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-a.webp", instrucoes: "Testar qual movimento não incomoda o joelho. Hack squat e sissy squat estão fora." },
+    { id: "quadriceps-a",        nome: "Agachamento no Smith",         equipamentoId: null, incrementoKg: 1,   emTeste: true, ilustracao: "imagens/quadriceps-a.webp", instrucoes: "Candidato ao lugar de quadríceps do A. Em teste por causa do joelho. Hack squat e sissy squat estão fora." },
     { id: "supino-sentado",      nome: "Supino sentado",              equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-sentado.webp", instrucoes: "" },
     { id: "puxada-alta",         nome: "Pulley (puxada alta)",        equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxada-alta.webp", instrucoes: "" },
     { id: "flexora-sentada",     nome: "Flexora sentada",             equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/flexora-sentada.webp", instrucoes: "" },
@@ -50,7 +50,7 @@ const DADOS_INICIAIS = {
     { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia.webp", instrucoes: "" },
     { id: "tronco",              nome: "Exercício de tronco",         equipamentoId: null, incrementoKg: 0,   semCarga: true, ilustracao: "imagens/tronco.webp", instrucoes: "" },
 
-    { id: "quadriceps-c",        nome: "Quadríceps do C (a definir)", equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/quadriceps-c.webp", instrucoes: "Mesmo teste do Treino A, sem hack squat e sem sissy squat." },
+    { id: "quadriceps-c",        nome: "Agachamento Goblet",          equipamentoId: null, incrementoKg: 1,   emTeste: true, ilustracao: "imagens/quadriceps-c.webp", instrucoes: "Candidato ao lugar de quadríceps do C. Em teste por causa do joelho." },
     { id: "pec-deck",            nome: "Pec deck (voador)",           equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/pec-deck.webp", instrucoes: "" },
     { id: "puxador-remada",      nome: "Puxador com remada",          equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxador-remada.webp", instrucoes: "" },
     { id: "rosca-ou-triceps",    nome: "Rosca ou tríceps",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/rosca-ou-triceps.webp", instrucoes: "" }
