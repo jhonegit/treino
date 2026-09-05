@@ -1,0 +1,469 @@
+/* =============================================================
+   Visual do app.
+   Paleta: fundo branco, laranja nos destaques, marrom no texto
+   forte e nas partes escuras. Botão grande, pouco texto.
+   Nada aqui decide comportamento, só aparência.
+   ============================================================= */
+
+:root {
+  --fundo:         #ffffff;
+  --fundo-morno:   #faf6f3;  /* branco levemente quente, para o fundo geral */
+  --cartao:        #ffffff;
+  --borda:         #e7dcd4;
+  --borda-forte:   #d6c5b8;
+
+  --laranja:       #f4551e;
+  --laranja-fundo: #fff1ea;  /* laranja bem lavado, para faixas de aviso */
+  --laranja-escuro:#c9400f;
+
+  --marrom:        #4a2f22;  /* títulos e texto forte */
+  --marrom-medio:  #6b4a37;
+  --marrom-claro:  #9b8275;  /* texto apagado */
+
+  --texto:         #2b1c14;
+  --perigo:        #b3261e;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--fundo-morno);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { padding-bottom: 130px; }  /* espaço para a barra do cronômetro */
+
+.oculto { display: none !important; }
+
+/* ---------- cabeçalho: faixa laranja ---------- */
+
+#cabecalho {
+  background: var(--laranja);
+  color: #fff;
+  padding: 16px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.titulo-treino {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.titulo-treino h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0.5px;
+}
+
+.hoje {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 2px;
+  opacity: .9;
+}
+
+.linha-progresso {
+  margin-top: 8px;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: #ffe6db;
+}
+
+.linha-progresso button {
+  background: rgba(255,255,255,.16);
+  border-color: rgba(255,255,255,.5);
+  color: #fff;
+}
+
+/* ---------- botões em geral ---------- */
+
+button {
+  font-family: inherit;
+  font-size: 17px;
+  color: var(--marrom);
+  background: #fff;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-height: 52px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active { transform: scale(0.97); }
+
+.btn-pequeno { min-height: 40px; padding: 8px 12px; font-size: 14px; border-radius: 10px; }
+
+.btn-laranja {
+  background: var(--laranja);
+  color: #fff;
+  border-color: var(--laranja);
+  font-weight: 700;
+}
+
+.btn-marrom {
+  background: var(--marrom);
+  color: #fff;
+  border-color: var(--marrom);
+  font-weight: 600;
+}
+
+.btn-largo  { width: 100%; }
+.btn-perigo { border-color: var(--perigo); color: var(--perigo); }
+
+/* ---------- cartão de exercício ---------- */
+
+.cartao {
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  margin: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(74,47,34,.06);
+}
+
+.cartao.aberto { border-color: var(--laranja); box-shadow: 0 4px 14px rgba(244,85,30,.12); }
+
+.cabeca-cartao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.numero {
+  width: 26px;
+  color: var(--marrom-claro);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+}
+
+.miniatura {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--borda);
+  flex: none;
+}
+
+.nome-exercicio {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--marrom);
+}
+
+.prescricao {
+  color: var(--marrom-claro);
+  font-size: 13px;
+  margin-top: 3px;
+  font-weight: 400;
+}
+
+.resumo {
+  color: var(--marrom-claro);
+  font-size: 15px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumo.feito { color: var(--laranja); font-weight: 600; }
+
+.corpo-cartao { padding: 0 16px 16px; border-top: 1px solid var(--borda); }
+
+.bloco { margin-top: 16px; }
+
+.rotulo {
+  color: var(--marrom-claro);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* ---------- foto do aparelho ---------- */
+
+.foto {
+  width: 100%;
+  height: 210px;
+  /* contain: mostra o desenho inteiro, sem cortar as beiradas.
+     As ilustrações têm fundo branco, então o fundo branco da caixa
+     some junto com elas. */
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid var(--borda);
+  display: block;
+  margin-top: 14px;
+  background: #fff;
+}
+
+/* na miniatura o corte é proposital: só precisa dar a pista visual */
+.miniatura { background: #fff; }
+
+.sem-foto {
+  margin-top: 14px;
+  border: 1px dashed var(--borda-forte);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  color: var(--marrom-claro);
+  font-size: 15px;
+}
+
+.acoes-foto { display: flex; gap: 8px; margin-top: 8px; }
+.acoes-foto button { flex: 1; }
+
+/* ---------- última vez e sugestão ---------- */
+
+.ultima-vez {
+  background: var(--fundo-morno);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--marrom-medio);
+}
+
+.ultima-vez b { color: var(--marrom); font-weight: 700; }
+
+.sugestao {
+  margin-top: 10px;
+  border: 1px solid var(--laranja);
+  background: var(--laranja-fundo);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.sugestao span { flex: 1; color: var(--laranja-escuro); }
+
+/* ---------- carga ---------- */
+
+.carga { display: flex; align-items: stretch; gap: 10px; }
+
+.carga button.passo { width: 66px; font-size: 26px; font-weight: 700; }
+
+.carga .valor {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--marrom);
+  font-variant-numeric: tabular-nums;
+  min-height: 60px;
+}
+
+/* campo de digitar a carga, dentro do próprio cartão */
+input.campo {
+  flex: 1;
+  min-height: 60px;
+  border: 2px solid var(--laranja);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--marrom);
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  padding: 0 10px;
+}
+
+input.campo:focus { outline: none; }
+
+/* ---------- grade de repetições ---------- */
+
+.grade-reps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+.grade-reps button {
+  min-height: 64px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--marrom);
+}
+
+.grade-reps button.outro { font-size: 16px; font-weight: 500; color: var(--marrom-claro); }
+
+.grade-reps.ampliada { grid-template-columns: repeat(4, 1fr); }
+.grade-reps.ampliada button { min-height: 54px; font-size: 20px; }
+
+/* ---------- séries já registradas ---------- */
+
+.series-feitas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.chip {
+  background: #fff;
+  border: 1px solid var(--borda-forte);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 15px;
+  color: var(--marrom-medio);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.topo { border-color: var(--laranja); color: var(--laranja-escuro); background: var(--laranja-fundo); }
+
+/* ---------- fileiras de escolha (RIR, desconforto, região) ---------- */
+
+.fileira { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.fileira button { flex: 1; min-width: 68px; }
+
+.fileira button.escolhido {
+  background: var(--laranja);
+  color: #fff;
+  border-color: var(--laranja);
+  font-weight: 700;
+}
+
+.fileira button.escolhido.ruim {
+  background: var(--perigo);
+  border-color: var(--perigo);
+  color: #fff;
+}
+
+/* ---------- observação ---------- */
+
+textarea {
+  width: 100%;
+  background: #fff;
+  color: var(--texto);
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  min-height: 70px;
+  resize: vertical;
+}
+
+textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
+
+/* ---------- fechamento do exercício ---------- */
+
+.fechamento { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--borda-forte); }
+
+/* ---------- faixas de aviso e de confirmação ---------- */
+
+.aviso {
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid var(--laranja);
+  background: var(--laranja-fundo);
+  border-radius: 16px;
+}
+
+.aviso h2 { margin: 0 0 6px; font-size: 19px; color: var(--marrom); }
+.aviso p  { margin: 0 0 14px; color: var(--marrom-medio); font-size: 15px; line-height: 1.4; }
+.aviso .botoes { display: grid; gap: 10px; }
+
+.confirmacao {
+  margin: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--marrom);
+  background: var(--marrom);
+  color: #fff;
+  border-radius: 14px;
+}
+
+.confirmacao p { margin: 0 0 12px; font-size: 16px; line-height: 1.35; }
+.confirmacao .botoes { display: flex; gap: 10px; }
+.confirmacao .botoes button { flex: 1; }
+.confirmacao .botoes .cancelar { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+
+/* ---------- rodapé ---------- */
+
+#rodape { padding: 8px 16px 24px; }
+
+/* ---------- cronômetro ---------- */
+
+#cronometro {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: #fff;
+  border-top: 1px solid var(--borda);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+  box-shadow: 0 -2px 12px rgba(74,47,34,.08);
+}
+
+#cronometro .tempo {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--marrom);
+  font-variant-numeric: tabular-nums;
+  min-width: 108px;
+}
+
+#cronometro.acabou { background: var(--laranja); border-top-color: var(--laranja); }
+#cronometro.acabou .tempo { color: #fff; }
+#cronometro.acabou button { background: rgba(255,255,255,.16); color: #fff; border-color: rgba(255,255,255,.6); }
+
+/* ---------- faixa de desfazer e de recado ---------- */
+
+#desfazer {
+  position: fixed;
+  left: 12px; right: 12px; bottom: 96px;
+  background: var(--marrom);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(74,47,34,.28);
+}
+
+#desfazer span { flex: 1; }
+
+#desfazer button {
+  background: var(--laranja);
+  color: #fff;
+  border: none;
+  min-height: 44px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+/* ---------- telas maiores: só centraliza ---------- */
+
+@media (min-width: 620px) {
+  body { max-width: 560px; margin: 0 auto; background: #fff; }
+  #cronometro, #desfazer { max-width: 560px; margin: 0 auto; }
+}
+
+/* crédito das ilustrações, no pé da tela */
+.creditos {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--marrom-claro);
+}
