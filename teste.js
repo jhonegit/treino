@@ -126,7 +126,7 @@ confere('exercício sem foto devolve nada',
 rodar("apagarFoto('eq-supino-sentado');");
 confere('foto removida', rodar("fotoDoExercicio(acharExercicio('supino-sentado'))"), null);
 
-console.log('\n--- progressão dupla ---');
+console.log('\n--- progressao: caminho normal (duas sessoes) ---');
 function historico(lista) { rodar('banco.sessoes = ' + JSON.stringify(lista) + ';'); }
 const topo = (data, carga, rir, nivel) => ({
   data, treinoId: 'treino-a', estado: 'concluida',
@@ -137,27 +137,49 @@ const topo = (data, carga, rir, nivel) => ({
   }]
 });
 const itemA = "acharTreino('treino-a').itens[1]";
+const sugestao = () => rodar('sugestaoDeCarga(' + itemA + ')');
 
 historico([]);
-confere('sem histórico: não sugere', rodar('sugestaoDeCarga(' + itemA + ')'), null);
+confere('sem historico: nao sugere', sugestao(), null);
 historico([topo('2026-09-01', 30, 2)]);
-confere('uma sessão no topo: ainda não', rodar('sugestaoDeCarga(' + itemA + ')'), null);
+confere('uma sessao com RIR 2: ainda nao', sugestao(), null);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
-confere('duas no topo: sugere 31', rodar('sugestaoDeCarga(' + itemA + ')'), 31);
-historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 32.5, 2)]);
-confere('carga mudou no meio: não sugere', rodar('sugestaoDeCarga(' + itemA + ')'), null);
+confere('duas sessoes RIR 2: sugere 31', sugestao(), { carga: 31, motivo: 'normal' });
+historico([topo('2026-09-01', 30, 3), topo('2026-09-03', 30, 2)]);
+confere('RIR 3 e depois 2: tambem vale', sugestao(), { carga: 31, motivo: 'normal' });
+historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 32, 2)]);
+confere('carga mudou no meio: nao sugere', sugestao(), null);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 1)]);
-confere('RIR 1 na última: não sugere', rodar('sugestaoDeCarga(' + itemA + ')'), null);
+confere('RIR 1 na ultima: nao sugere', sugestao(), null);
+historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 0)]);
+confere('RIR 0 na ultima: nao sugere', sugestao(), null);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2, 'moderado')]);
-confere('desconforto moderado: não sugere', rodar('sugestaoDeCarga(' + itemA + ')'), null);
-historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 3)]);
-confere('RIR 3 também vale', rodar('sugestaoDeCarga(' + itemA + ')'), 31);
+confere('desconforto moderado: nao sugere', sugestao(), null);
+historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2, 'leve')]);
+confere('desconforto leve nao atrapalha', sugestao(), { carga: 31, motivo: 'normal' });
+
+console.log('\n--- progressao: caminho curto (carga leve) ---');
+historico([topo('2026-09-03', 30, 4)]);
+confere('uma sessao com RIR 4: ja avisa que esta leve', sugestao(), { carga: 31, motivo: 'leve' });
+historico([topo('2026-09-03', 30, 5)]);
+confere('RIR 5 tambem', sugestao(), { carga: 31, motivo: 'leve' });
+historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 5)]);
+confere('a sessao mais recente manda', sugestao(), { carga: 31, motivo: 'leve' });
+historico([topo('2026-09-03', 30, 5, 'forte')]);
+confere('com desconforto forte nao sugere nada', sugestao(), null);
+const faltou = { data: '2026-09-03', treinoId: 'treino-a', estado: 'concluida', itens: [{
+  exercicioId: 'supino-sentado',
+  series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 5 }],
+  desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] };
+historico([faltou]);
+confere('RIR alto mas faltou repeticao: nao sugere', sugestao(), null);
 const meio = { data: '2026-09-03', treinoId: 'treino-a', estado: 'concluida', itens: [{
   exercicioId: 'supino-sentado',
   series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 2 }],
   desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] };
 historico([topo('2026-09-01', 30, 2), meio]);
-confere('faltou uma repetição: não sugere', rodar('sugestaoDeCarga(' + itemA + ')'), null);
+confere('faltou uma repeticao: nao sugere', sugestao(), null);
+
 
 console.log('\n--- carga herdada da última vez ---');
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
@@ -193,7 +215,7 @@ confere('todo exercício sobe de 1 kg', [...new Set(passos)], [1]);
 rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; ajustarCarga(1, +1);");
 confere('mais um toque no + vai para 31', rodar('sessao.itens[1].cargaAtualKg'), 31);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
-confere('a sugestão agora é 31, não 32,5', rodar('sugestaoDeCarga(' + itemA + ')'), 31);
+confere('a sugestão agora é 31, não 32,5', rodar('sugestaoDeCarga(' + itemA + ')'), { carga: 31, motivo: 'normal' });
 
 console.log('\n--- app antigo, salvo quando era 2,5 kg ---');
 rodar("banco.versaoDosDados = 1;" +

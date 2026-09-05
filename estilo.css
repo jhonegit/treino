@@ -469,3 +469,11 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 }
 
 .linha-backup button { flex: 1; max-width: 190px; }
+
+/* seis botões de RIR cabendo em uma linha só no celular */
+.fileira-rir button {
+  min-width: 0;
+  padding: 14px 4px;
+  font-size: 18px;
+  font-weight: 700;
+}

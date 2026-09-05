@@ -127,7 +127,8 @@ let cron = null;           // cronômetro de descanso
 let relogioId = null;      // identificador do setInterval do cronômetro
 let desfazerId = null;     // identificador do sumiço da faixa
 
-const RIR_MINIMO_PARA_SUBIR = 2;   // regra nossa
+const RIR_MINIMO_PARA_SUBIR = 2;   // folga mínima para a sessão contar
+const RIR_CARGA_LEVE        = 4;   // daqui para cima, uma sessão só já basta
 const SESSOES_NO_TOPO       = 2;   // duas sessões seguidas
 const HORAS_ATE_PERGUNTAR   = 4;   // depois disso, o app pergunta o que fazer
 const LARGURA_DA_FOTO       = 700; // a foto é reduzida antes de ser guardada
@@ -270,15 +271,38 @@ function fechouOTopo(item, itemDoTreino) {
   return true;
 }
 
-/* Progressão dupla, versão conservadora:
-   duas sessões seguidas fechando o topo, com a MESMA carga nas duas.
-   Se a carga mudou no meio, a contagem recomeça.
-   Devolve a carga sugerida, ou null quando não há o que sugerir. */
+/* Duas regras de sugestão, e são as únicas. Nada aqui é conselho
+   médico nem regra universal: foi o que nós dois combinamos.
+
+   1. CARGA LEVE (caminho curto). Uma sessão só, com todas as séries no
+      topo da faixa e RIR 4 ou mais, já indica que o peso está folgado
+      demais. Sugere na próxima sessão, sem esperar a segunda.
+
+   2. PROGRESSÃO DUPLA (caminho normal). Duas sessões seguidas fechando
+      o topo com folga (RIR 2 ou mais) e a MESMA carga nas duas. Se a
+      carga mudou no meio, a contagem recomeça.
+
+   Devolve { carga, motivo } ou null quando não há o que sugerir. */
 function sugestaoDeCarga(itemDoTreino) {
   const exercicio = acharExercicio(itemDoTreino.exercicioId);
   if (exercicio.semCarga) return null;
 
   const ultimas = execucoesDe(itemDoTreino.exercicioId).slice(0, SESSOES_NO_TOPO);
+  if (ultimas.length === 0) return null;
+
+  const salto = exercicio.incrementoKg || banco.config.incrementoPadraoKg;
+  const somar = carga => Math.round((carga + salto) * 100) / 100;   // Math.round [nativo]
+
+  /* 1. carga leve: basta a sessão mais recente */
+  const recente = ultimas[0];
+  if (fechouOTopo(recente.item, itemDoTreino)) {
+    const cargaRecente = cargaDoItem(recente.item);
+    if (cargaRecente !== null && rirDoItem(recente.item) >= RIR_CARGA_LEVE) {
+      return { carga: somar(cargaRecente), motivo: 'leve' };
+    }
+  }
+
+  /* 2. progressão dupla */
   if (ultimas.length < SESSOES_NO_TOPO) return null;
   if (!ultimas.every(e => fechouOTopo(e.item, itemDoTreino))) return null;
 
@@ -286,8 +310,7 @@ function sugestaoDeCarga(itemDoTreino) {
   if (cargas.some(c => c === null)) return null;
   if (!cargas.every(c => c === cargas[0])) return null;   // carga tem que ser a mesma
 
-  const salto = exercicio.incrementoKg || banco.config.incrementoPadraoKg;
-  return Math.round((cargas[0] + salto) * 100) / 100;      // Math.round [nativo]
+  return { carga: somar(cargas[0]), motivo: 'normal' };
 }
 
 
@@ -983,11 +1006,14 @@ function desenharCartao(itemDoTreino, i) {
 
   /* sugestão de progressão */
   const sugerida = sugestaoDeCarga(itemDoTreino);
-  if (sugerida !== null) {
+  if (sugerida) {
+    const recado = sugerida.motivo === 'leve'
+      ? 'Carga parece leve para a faixa. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.'
+      : 'Duas sessões no topo. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.';
     html += '<div class="sugestao">' +
-      '<span>Duas sessões no topo. Dá para testar <b>' + numero(sugerida) + ' kg</b>.</span>' +
+      '<span>' + recado + '</span>' +
       '<button class="btn-pequeno btn-laranja" data-acao="aceitar-sugestao" data-i="' + i +
-        '" data-valor="' + sugerida + '">Usar</button>' +
+        '" data-valor="' + sugerida.carga + '">Usar</button>' +
       '</div>';
   }
 
@@ -1045,10 +1071,10 @@ function desenharCartao(itemDoTreino, i) {
 
     html += '<div class="fechamento">';
 
-    html += '<div class="rotulo">RIR da última série</div><div class="fileira">' +
-      [0, 1, 2, 3].map(v =>
+    html += '<div class="rotulo">RIR da última série</div><div class="fileira fileira-rir">' +
+      [0, 1, 2, 3, 4, 5].map(v =>
         '<button data-acao="rir" data-i="' + i + '" data-valor="' + v + '"' +
-        (rirAtual === v ? ' class="escolhido"' : '') + '>' + (v === 3 ? '3+' : v) + '</button>'
+        (rirAtual === v ? ' class="escolhido"' : '') + '>' + (v === 5 ? '5+' : v) + '</button>'
       ).join('') + '</div>';
 
     html += '<div class="bloco"><div class="rotulo">Desconforto</div><div class="fileira">' +
