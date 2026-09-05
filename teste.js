@@ -333,6 +333,60 @@ confere('avisa que nao ha nada',
 rodar('fecharHistorico();');
 
 
+console.log('\n--- lista de treinos registrados ---');
+rodar('banco.sessoes = ' + JSON.stringify([
+  { id: 's1', data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+      exercicioId: 'supino-sentado', series: [{ cargaKg: 28, reps: 12 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
+  { id: 's2', data: '2026-09-03', treinoId: 'treino-b', estado: 'concluida', itens: [{
+      exercicioId: 'remada', series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 10 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] }
+]) + '; recalcularFila(); sessao = criarSessao(proximoTreinoId());');
+confere('a fila esta no C, porque o ultimo concluido foi o B', rodar('sessao.treinoId'), 'treino-c');
+
+rodar('abrirListaDeTreinos();');
+const lista = rodar("document.getElementById('historico').innerHTML");
+confere('o painel abriu na lista', rodar('listaAberta'), true);
+confere('conta os treinos guardados', lista.indexOf('2 treinos guardados') > -1, true);
+confere('mostra o treino B', lista.indexOf('Treino B') > -1, true);
+confere('mostra quantas series', lista.indexOf('2 séries') > -1, true);
+confere('cada um tem botao de apagar', lista.indexOf('data-acao="apagar-sessao"') > -1, true);
+
+console.log('\n--- apagar um treino ---');
+rodar("pedirApagarSessao('s2');");
+confere('pergunta antes de apagar', rodar('confirmando.tipo'), 'apagar-sessao');
+confere('a pergunta diz qual treino', rodar("confirmando.texto.indexOf('Treino B') > -1"), true);
+rodar('executarConfirmacao();');
+confere('sobrou um treino', rodar('banco.sessoes.length'), 1);
+confere('a fila voltou para o B, porque o ultimo concluido agora e o A',
+  rodar('proximoTreinoId()'), 'treino-b');
+confere('o exercicio do treino apagado perdeu o historico',
+  rodar("execucoesDe('remada').length"), 0);
+confere('da para desfazer', rodar('ultimaAcao.tipo'), 'apagar-sessao');
+
+console.log('\n--- desfazer o apagar ---');
+rodar('desfazer();');
+confere('o treino voltou', rodar('banco.sessoes.length'), 2);
+confere('voltou para o mesmo lugar da lista', rodar('banco.sessoes[1].id'), 's2');
+confere('a fila voltou ao C', rodar('proximoTreinoId()'), 'treino-c');
+confere('o historico do exercicio voltou', rodar("execucoesDe('remada').length"), 1);
+
+console.log('\n--- apagar tudo deixa a fila no comeco ---');
+rodar("pedirApagarSessao('s1'); executarConfirmacao(); pedirApagarSessao('s2'); executarConfirmacao();");
+confere('nao sobrou treino nenhum', rodar('banco.sessoes.length'), 0);
+confere('a fila voltou para o A', rodar('proximoTreinoId()'), 'treino-a');
+
+console.log('\n--- treino de hoje, ainda em andamento ---');
+rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12); abrirListaDeTreinos();");
+const comHoje = rodar("document.getElementById('historico').innerHTML");
+confere('aparece marcado como em andamento', comHoje.indexOf('em andamento') > -1, true);
+confere('tem como apagar ele tambem', comHoje.indexOf('data-acao="descartar-atual"') > -1, true);
+rodar('pedirDescarte(); executarConfirmacao();');
+confere('o treino de hoje foi descartado', rodar('sessaoTemRegistro(sessao)'), false);
+confere('e nao virou treino guardado', rodar('banco.sessoes.length'), 0);
+rodar('fecharHistorico();');
+
+
 /* volta o historico que o desenho da tela espera logo abaixo */
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
 

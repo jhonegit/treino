@@ -74,6 +74,10 @@ function completarComSementes() {
      precisa alcançar quem já vinha usando o app.
      Versão 2 (04/09/2026): a carga passou a subir de 1 em 1 kg, porque
      as anilhas da academia não fecham de 2,5 em 2,5. */
+  banco.sessoes.forEach((s, n) => {
+    if (!s.id) { s.id = 's' + n + '-' + (s.data || '').replace(/-/g, ''); mudou = true; }
+  });
+
   const versaoSalva = banco.versaoDosDados || 1;
   if (versaoSalva < 2) {
     DADOS_INICIAIS.exercicios.forEach(semente => {
@@ -123,6 +127,8 @@ let editandoCarga = null;  // índice do exercício com o campo de carga aberto
 let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
 let historicoAberto = null;         // id do exercício com o histórico na tela
+let listaAberta = false;            // lista dos treinos já registrados
+let sessaoApagada = null;           // guardada na memória para o Desfazer
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -443,12 +449,56 @@ function concluirExercicio(i) {
 
 function abrirHistorico(exercicioId) {
   historicoAberto = exercicioId;
+  listaAberta = false;
+  desenhar();
+}
+
+function abrirListaDeTreinos() {
+  listaAberta = true;
+  historicoAberto = null;
   desenhar();
 }
 
 function fecharHistorico() {
   historicoAberto = null;
+  listaAberta = false;
   desenhar();
+}
+
+/* Depois de apagar ou devolver uma sessão, a fila A > B > C precisa ser
+   recalculada: ela segue o treino CONCLUÍDO mais recente que sobrou. */
+function recalcularFila() {
+  const concluidas = banco.sessoes.filter(s => s.estado === 'concluida');
+  concluidas.sort((a, b) => (a.data < b.data ? -1 : 1));
+  banco.config.ultimoTreinoConcluido = concluidas.length
+    ? concluidas[concluidas.length - 1].treinoId
+    : null;
+}
+
+function pedirApagarSessao(sessaoId) {
+  const alvo = banco.sessoes.find(s => s.id === sessaoId);
+  if (!alvo) return;
+  confirmando = {
+    tipo: 'apagar-sessao',
+    sessaoId: sessaoId,
+    texto: 'Apagar o ' + acharTreino(alvo.treinoId).nome + ' de ' + dataCurta(alvo.data) +
+           ', com ' + seriesDaSessao(alvo) + ' séries? Some do histórico de todos os exercícios.',
+    botao: 'Apagar',
+    perigo: true
+  };
+  desenhar();
+}
+
+function apagarSessao(sessaoId) {
+  const pos = banco.sessoes.findIndex(s => s.id === sessaoId);
+  if (pos < 0) return;
+  sessaoApagada = { posicao: pos, sessao: banco.sessoes[pos] };
+  banco.sessoes.splice(pos, 1);
+  recalcularFila();
+  salvarBanco();
+  ultimaAcao = { tipo: 'apagar-sessao' };
+  desenhar();
+  mostrarFaixa('Treino apagado', true);
 }
 
 function abrirCartao(i) {
@@ -529,6 +579,7 @@ function executarConfirmacao() {
   if (pedido.tipo === 'trocar')          return trocarTreino(pedido.destino);
   if (pedido.tipo === 'concluir-treino') return arquivarSessao('concluida');
   if (pedido.tipo === 'restaurar')       return restaurarBackup();
+  if (pedido.tipo === 'apagar-sessao')   return apagarSessao(pedido.sessaoId);
   if (pedido.tipo === 'descartar') {
     apagarSessaoSalva();
     perguntarSobrePendente = false;
@@ -693,6 +744,19 @@ function esconderFaixa() {
 function desfazer() {
   if (!ultimaAcao) return esconderFaixa();
 
+  /* devolver um treino apagado ao lugar de onde saiu */
+  if (ultimaAcao.tipo === 'apagar-sessao') {
+    if (sessaoApagada) {
+      banco.sessoes.splice(sessaoApagada.posicao, 0, sessaoApagada.sessao);
+      sessaoApagada = null;
+      recalcularFila();
+      salvarBanco();
+    }
+    esconderFaixa();
+    desenhar();
+    return;
+  }
+
   /* desfazer uma restauração: volta o retrato guardado na memória */
   if (ultimaAcao.tipo === 'restaurar') {
     if (estadoAntesDaRestauracao) {
@@ -849,6 +913,9 @@ function desenhar() {
       ? '<button class="btn-largo btn-laranja" data-acao="concluir-treino">Concluir treino</button>'
       : '') +
     '<div class="linha-backup">' +
+      '<button class="btn-pequeno" data-acao="ver-treinos">Treinos registrados</button>' +
+    '</div>' +
+    '<div class="linha-backup">' +
       '<button class="btn-pequeno" data-acao="backup">Salvar backup</button>' +
       '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
     '</div>';
@@ -867,6 +934,8 @@ function desenhar() {
    olhar o histórico enquanto o descanso corre. */
 function desenharHistorico() {
   const caixa = document.getElementById('historico');
+
+  if (listaAberta) { caixa.classList.remove('oculto'); caixa.innerHTML = desenharListaDeTreinos(); return; }
   if (!historicoAberto) { caixa.classList.add('oculto'); return; }
 
   const exercicio = acharExercicio(historicoAberto);
@@ -908,6 +977,50 @@ function desenharHistorico() {
     '</div>' +
     '<div class="lista-historico">' +
       (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
+    '</div>';
+}
+
+/* Lista de tudo que já foi registrado, para poder apagar o que foi só
+   teste. Mostra também o treino de hoje, se estiver em andamento. */
+function desenharListaDeTreinos() {
+  const registrados = banco.sessoes.slice().reverse();   // mais recente em cima
+
+  const emAndamento = sessaoTemRegistro(sessao)
+    ? '<div class="sessao">' +
+        '<div class="dia">' + dataCurta(sessao.data) + '</div>' +
+        '<div class="detalhe">' +
+          '<div class="linha-carga"><b>' + esc(acharTreino(sessao.treinoId).nome) + '</b>' +
+            ' <span class="marca">em andamento</span></div>' +
+          '<div class="extra-cinza">' + seriesDaSessao(sessao) + ' séries registradas hoje</div>' +
+        '</div>' +
+        '<button class="btn-pequeno btn-perigo" data-acao="descartar-atual">Apagar</button>' +
+      '</div>'
+    : '';
+
+  const linhas = registrados.map(s => {
+    const exerciciosFeitos = s.itens.filter(it => it.series.length > 0).length;
+    return '<div class="sessao">' +
+      '<div class="dia">' + dataCurta(s.data) + '</div>' +
+      '<div class="detalhe">' +
+        '<div class="linha-carga"><b>' + esc(acharTreino(s.treinoId).nome) + '</b>' +
+          (s.estado === 'incompleta' ? ' <span class="marca">incompleto</span>' : '') + '</div>' +
+        '<div class="extra-cinza">' + exerciciosFeitos + ' exercícios · ' +
+          seriesDaSessao(s) + ' séries</div>' +
+      '</div>' +
+      '<button class="btn-pequeno btn-perigo" data-acao="apagar-sessao" data-id="' + esc(s.id) + '">Apagar</button>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="topo-historico">' +
+      '<div><h2>Treinos registrados</h2>' +
+      '<div class="resumo-historico">' + registrados.length +
+        (registrados.length === 1 ? ' treino guardado' : ' treinos guardados') + '</div></div>' +
+      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    desenharConfirmacao() +
+    '<div class="lista-historico">' +
+      emAndamento + linhas +
+      (registrados.length || emAndamento ? '' : '<div class="vazio">Nada registrado ainda.</div>') +
     '</div>';
 }
 
@@ -1063,7 +1176,7 @@ function desenharCartao(itemDoTreino, i) {
         (rirAtual === v ? ' class="escolhido"' : '') + '>' + (v === 5 ? '5+' : v) + '</button>'
       ).join('') + '</div>';
 
-    html += '<div class="bloco"><div class="rotulo">Desconforto</div><div class="fileira">' +
+    html += '<div class="bloco"><div class="rotulo">Desconforto</div><div class="fileira fileira-desconforto">' +
       NIVEIS.map(n => {
         const escolhido = nivel === n.id;
         const ruim = escolhido && (n.id === 'moderado' || n.id === 'forte');
@@ -1072,7 +1185,7 @@ function desenharCartao(itemDoTreino, i) {
       }).join('') + '</div></div>';
 
     if (nivel && nivel !== 'sem') {
-      html += '<div class="bloco"><div class="rotulo">Região (opcional)</div><div class="fileira">' +
+      html += '<div class="bloco"><div class="rotulo">Região (opcional)</div><div class="fileira fileira-regiao">' +
         REGIOES.map(r =>
           '<button data-acao="regiao" data-i="' + i + '" data-valor="' + r + '"' +
           (item.desconforto.regioes.indexOf(r) >= 0 ? ' class="escolhido"' : '') + '>' + r + '</button>'
@@ -1114,6 +1227,9 @@ document.addEventListener('click', function (evento) {
   switch (acao) {
     case 'abrir-cartao':       abrirCartao(i); break;
     case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
+    case 'ver-treinos':        abrirListaDeTreinos(); break;
+    case 'apagar-sessao':      pedirApagarSessao(alvo.dataset.id); break;
+    case 'descartar-atual':    pedirDescarte(); break;
     case 'fechar-historico':   fecharHistorico(); break;
 
     case 'carga-mais':         ajustarCarga(i, +1); break;

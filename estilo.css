@@ -474,12 +474,40 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 .linha-backup button { flex: 1; max-width: 190px; }
 
 /* seis botões de RIR cabendo em uma linha só no celular */
+.fileira-rir {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+
 .fileira-rir button {
   min-width: 0;
-  padding: 14px 4px;
+  padding: 14px 2px;
   font-size: 18px;
   font-weight: 700;
 }
+
+/* quatro níveis de desconforto: "Moderado" é a palavra mais longa e
+   precisa caber em tela estreita, por isso a grade de 4 colunas iguais
+   e a letra um pouco menor */
+.fileira-desconforto {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.fileira-desconforto button {
+  min-width: 0;
+  padding: 14px 2px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* as seis regiões: duas linhas de três, sem palavra saindo da caixa */
+.fileira-regiao {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.fileira-regiao button { min-width: 0; padding: 12px 2px; font-size: 15px; }
 
 /* ---------- linha "última vez", que abre o histórico ---------- */
 
@@ -590,3 +618,9 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 }
 
 .vazio { text-align: center; color: var(--marrom-claro); padding: 30px 10px; }
+
+/* segunda linha do cartão da lista de treinos */
+.extra-cinza { margin-top: 4px; font-size: 14px; color: var(--marrom-claro); }
+
+/* na lista de treinos o botão de apagar fica na direita do cartão */
+.sessao > button { align-self: center; flex: none; }
