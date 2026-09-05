@@ -729,3 +729,18 @@ textarea:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
 }
 
 .novo-exercicio input:focus { outline: 2px solid var(--laranja); outline-offset: -2px; }
+
+/* aviso de desconforto repetido: sóbrio de propósito, não é alarme */
+.atencao {
+  margin-top: 10px;
+  border: 1px solid var(--borda-forte);
+  border-left: 4px solid var(--marrom-medio);
+  background: var(--fundo-morno);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--marrom-medio);
+}
+
+.atencao-painel { margin: 12px 12px 0; }

@@ -468,6 +468,86 @@ rodar('fecharHistorico();');
 confere('fechou a edicao', rodar('edicao'), null);
 
 
+console.log('\n--- aviso de desconforto repetido ---');
+const sessaoCom = (id, data, nivel, regiao) => ({
+  id: id, data: data, treinoId: 'treino-a', estado: 'concluida', itens: [{
+    exercicioId: 'flexora-sentada',
+    series: [{ cargaKg: 20, reps: 12 }, { cargaKg: 20, reps: 12, rir: 2 }],
+    desconforto: { nivel: nivel, regioes: regiao ? [regiao] : [] },
+    observacao: '', concluido: true }] });
+
+const avisar = () => rodar("avisoDeDesconforto('flexora-sentada')");
+
+rodar('banco.sessoes = [];');
+confere('sem historico: nao avisa', avisar(), null);
+
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('d1', '2026-09-01', 'moderado', 'joelho'),
+  sessaoCom('d2', '2026-09-03', null, null)
+]) + ';');
+confere('um desconforto so: nao avisa', avisar(), null);
+
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('d1', '2026-09-01', 'moderado', 'joelho'),
+  sessaoCom('d2', '2026-09-03', 'leve', 'joelho'),
+  sessaoCom('d3', '2026-09-05', 'moderado', 'joelho')
+]) + ';');
+confere('leve nao conta, entao ainda nao avisa', avisar(), null);
+
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('d1', '2026-09-01', 'moderado', 'joelho'),
+  sessaoCom('d2', '2026-09-03', 'moderado', 'joelho'),
+  sessaoCom('d3', '2026-09-05', 'forte', 'quadril')
+]) + ';');
+const aviso = avisar();
+confere('tres em cinco: avisa', aviso !== null, true);
+confere('conta certo', [aviso.quantas, aviso.de], [3, 3]);
+confere('lista a regiao mais anotada primeiro', aviso.regioes[0], 'joelho');
+const texto = rodar('textoDoAviso(' + JSON.stringify(aviso) + ')');
+confere('o texto so conta o que foi registrado',
+  texto, 'Você registrou desconforto moderado ou forte neste exercício em 3 das últimas 3 sessões. Região anotada: joelho, quadril.');
+confere('o texto nao da diagnostico nenhum',
+  /lesão|lesao|tendin|inflam|médico|medico|pare de|evite/i.test(texto), false);
+
+console.log('\n--- duas fortes seguidas bastam ---');
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('d1', '2026-09-01', null, null),
+  sessaoCom('d2', '2026-09-03', 'forte', 'ombro'),
+  sessaoCom('d3', '2026-09-05', 'forte', 'ombro')
+]) + ';');
+confere('duas fortes em sequencia: avisa mesmo sendo so duas', avisar() !== null, true);
+
+console.log('\n--- so olha as ultimas cinco ---');
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('a1', '2026-08-01', 'forte', 'joelho'),
+  sessaoCom('a2', '2026-08-03', 'forte', 'joelho'),
+  sessaoCom('a3', '2026-08-05', 'forte', 'joelho'),
+  sessaoCom('b1', '2026-09-01', null, null),
+  sessaoCom('b2', '2026-09-03', null, null),
+  sessaoCom('b3', '2026-09-05', null, null),
+  sessaoCom('b4', '2026-09-07', null, null),
+  sessaoCom('b5', '2026-09-09', null, null)
+]) + ';');
+confere('desconforto antigo sai de vista depois de cinco sessoes limpas', avisar(), null);
+
+console.log('\n--- onde o aviso aparece ---');
+rodar('banco.sessoes = ' + JSON.stringify([
+  sessaoCom('d1', '2026-09-01', 'moderado', 'joelho'),
+  sessaoCom('d2', '2026-09-03', 'moderado', 'joelho'),
+  sessaoCom('d3', '2026-09-05', 'forte', 'joelho')
+]) + ';');
+rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = sessao.itens.findIndex(it => it.exercicioId === 'flexora-sentada'); desenhar();");
+confere('aparece no cartao do exercicio',
+  rodar("document.getElementById('conteudo').innerHTML").indexOf('em 3 das últimas 3') > -1, true);
+rodar("abrirHistorico('flexora-sentada');");
+confere('e no topo do historico',
+  rodar("document.getElementById('painel').innerHTML").indexOf('em 3 das últimas 3') > -1, true);
+rodar('fecharHistorico();');
+rodar("sessao.itemAberto = sessao.itens.findIndex(it => it.exercicioId === 'panturrilha'); desenhar();");
+confere('exercicio sem desconforto nao mostra nada',
+  rodar("document.getElementById('conteudo').innerHTML").indexOf('desconforto moderado ou forte') === -1, true);
+
+
 /* volta o historico que o desenho da tela espera logo abaixo */
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
 

@@ -139,6 +139,8 @@ let desfazerId = null;     // identificador do sumiço da faixa
 
 const RIR_MINIMO_PARA_SUBIR = 2;   // folga mínima para a sessão contar
 const RIR_CARGA_LEVE        = 4;   // daqui para cima, uma sessão só já basta
+const SESSOES_OLHADAS       = 5;   // quantas sessões o aviso de desconforto olha
+const DESCONFORTOS_PARA_AVISAR = 3;// quantas delas com desconforto para avisar
 const SESSOES_NO_TOPO       = 2;   // duas sessões seguidas
 const HORAS_ATE_PERGUNTAR   = 4;   // depois disso, o app pergunta o que fazer
 
@@ -473,6 +475,48 @@ function fecharHistorico() {
   listaAberta = false;
   edicao = null;
   desenhar();
+}
+
+/* Aviso de desconforto repetido. Regra explícita, combinada, e nada
+   além disso: o app CONTA o que você registrou e mostra o número.
+   Ele não diz causa, não dá nome a nada e não recomenda tratamento.
+
+   Avisa quando, nas últimas 5 sessões daquele exercício:
+     - 3 ou mais tiveram desconforto moderado ou forte; ou
+     - as 2 mais recentes tiveram desconforto forte.
+
+   Devolve { quantas, de, regioes } ou null. */
+function avisoDeDesconforto(exercicioId) {
+  const ultimas = execucoesDe(exercicioId).slice(0, SESSOES_OLHADAS);
+  if (ultimas.length === 0) return null;
+
+  const pesado = item => {
+    const nivel = item.desconforto && item.desconforto.nivel;
+    return nivel === 'moderado' || nivel === 'forte';
+  };
+  const forte = item => (item.desconforto && item.desconforto.nivel) === 'forte';
+
+  const comDesconforto = ultimas.filter(e => pesado(e.item));
+  const duasFortesSeguidas = ultimas.length >= 2 && forte(ultimas[0].item) && forte(ultimas[1].item);
+
+  if (comDesconforto.length < DESCONFORTOS_PARA_AVISAR && !duasFortesSeguidas) return null;
+
+  /* regiões anotadas, da mais repetida para a menos */
+  const contagem = {};
+  comDesconforto.forEach(e => {
+    (e.item.desconforto.regioes || []).forEach(r => { contagem[r] = (contagem[r] || 0) + 1; });
+  });
+  const regioes = Object.keys(contagem).sort((a, b) => contagem[b] - contagem[a]);
+
+  return { quantas: comDesconforto.length, de: ultimas.length, regioes: regioes };
+}
+
+/* O texto do aviso, escrito por nós, sempre o mesmo. */
+function textoDoAviso(aviso) {
+  return 'Você registrou desconforto moderado ou forte neste exercício em ' +
+    aviso.quantas + ' das últimas ' + aviso.de +
+    (aviso.de === 1 ? ' sessão.' : ' sessões.') +
+    (aviso.regioes.length ? ' Região anotada: ' + aviso.regioes.join(', ') + '.' : '');
 }
 
 /* ---------- editar o treino ----------
@@ -1112,6 +1156,8 @@ function desenharPainel() {
       '</div></div>';
   }).join('');
 
+  const aviso = avisoDeDesconforto(historicoAberto);
+
   caixa.classList.remove('oculto');
   caixa.innerHTML =
     '<div class="topo-painel">' +
@@ -1119,6 +1165,7 @@ function desenharPainel() {
       '<div class="resumo-painel">' + resumo + '</div></div>' +
       '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
+    (aviso ? '<div class="atencao atencao-painel">' + esc(textoDoAviso(aviso)) + '</div>' : '') +
     '<div class="lista-painel">' +
       (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
     '</div>';
@@ -1343,6 +1390,12 @@ function desenharCartao(itemDoTreino, i) {
       '<button class="btn-pequeno btn-laranja" data-acao="aceitar-sugestao" data-i="' + i +
         '" data-valor="' + sugerida.carga + '">Usar</button>' +
       '</div>';
+  }
+
+  /* desconforto repetido: só o que você registrou, contado */
+  const aviso = avisoDeDesconforto(item.exercicioId);
+  if (aviso) {
+    html += '<div class="atencao">' + esc(textoDoAviso(aviso)) + '</div>';
   }
 
   /* carga */
