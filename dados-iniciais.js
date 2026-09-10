@@ -12,7 +12,7 @@
    ============================================================= */
 
 const DADOS_INICIAIS = {
-  versaoDosDados: 2,
+  versaoDosDados: 3,
 
   /* -----------------------------------------------------------
      EQUIPAMENTOS: as máquinas físicas da sua academia.
@@ -24,9 +24,16 @@ const DADOS_INICIAIS = {
   /* -----------------------------------------------------------
      EXERCÍCIOS: o movimento em si.
      incrementoKg é o menor salto de carga possível naquele
-     aparelho. Deixei 1 kg em todos, que é o passo que funciona nas
-     anilhas da sua academia. Se algum aparelho só andar de 5 em 5,
-     muda aqui, exercício por exercício.
+     aparelho, conferido por você na academia em 10/09/2026.
+
+     2 kg: Smith, supino sentado e goblet. São anilhas de 1 kg de
+     cada lado, então o menor salto real é 2.
+
+     1 kg: halteres e os aparelhos de barra. Nos de barra o número
+     que você digita é a BARRA, não o quilo (você conta 7, 8, 9), e
+     ali só existe salto de uma barra por vez.
+
+     Se um aparelho mudar, muda aqui e sobe versaoDosDados.
 
      Os dois "quadríceps a definir" são exercícios separados de
      propósito: o do Treino A e o do Treino C podem acabar sendo
@@ -34,8 +41,8 @@ const DADOS_INICIAIS = {
      nome aqui e o histórico continua colado nesse mesmo id.
      ----------------------------------------------------------- */
   exercicios: [
-    { id: "quadriceps-a",        nome: "Agachamento no Smith",         equipamentoId: null, incrementoKg: 1,   emTeste: true, ilustracao: "imagens/quadriceps-a.webp", instrucoes: "Candidato ao lugar de quadríceps do A. Em teste por causa do joelho. Hack squat e sissy squat estão fora." },
-    { id: "supino-sentado",      nome: "Supino sentado",              equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-sentado.webp", instrucoes: "" },
+    { id: "quadriceps-a",        nome: "Agachamento no Smith",         equipamentoId: null, incrementoKg: 2,   emTeste: true, ilustracao: "imagens/quadriceps-a.webp", instrucoes: "Candidato ao lugar de quadríceps do A. Em teste por causa do joelho. Hack squat e sissy squat estão fora." },
+    { id: "supino-sentado",      nome: "Supino sentado",              equipamentoId: null, incrementoKg: 2,   ilustracao: "imagens/supino-sentado.webp", instrucoes: "" },
     { id: "puxada-alta",         nome: "Pulley (puxada alta)",        equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxada-alta.webp", instrucoes: "" },
     { id: "flexora-sentada",     nome: "Flexora sentada",             equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/flexora-sentada.webp", instrucoes: "" },
     { id: "elevacao-lateral",    nome: "Elevação lateral",            equipamentoId: null, incrementoKg: 1,     ilustracao: "imagens/elevacao-lateral.webp", instrucoes: "" },
@@ -50,7 +57,7 @@ const DADOS_INICIAIS = {
     { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia.webp", instrucoes: "" },
     { id: "tronco",              nome: "Exercício de tronco",         equipamentoId: null, incrementoKg: 0,   semCarga: true, ilustracao: "imagens/tronco.webp", instrucoes: "" },
 
-    { id: "quadriceps-c",        nome: "Agachamento Goblet",          equipamentoId: null, incrementoKg: 1,   emTeste: true, ilustracao: "imagens/quadriceps-c.webp", instrucoes: "Candidato ao lugar de quadríceps do C. Em teste por causa do joelho." },
+    { id: "quadriceps-c",        nome: "Agachamento Goblet",          equipamentoId: null, incrementoKg: 2,   emTeste: true, ilustracao: "imagens/quadriceps-c.webp", instrucoes: "Candidato ao lugar de quadríceps do C. Em teste por causa do joelho." },
     { id: "pec-deck",            nome: "Pec deck (voador)",           equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/pec-deck.webp", instrucoes: "" },
     { id: "puxador-remada",      nome: "Puxador com remada",          equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxador-remada.webp", instrucoes: "" },
     { id: "rosca-ou-triceps",    nome: "Rosca ou tríceps",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/rosca-ou-triceps.webp", instrucoes: "" }

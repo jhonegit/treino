@@ -89,6 +89,20 @@ function completarComSementes() {
     mudou = true;
   }
 
+  /* Versão 3 (10/09/2026): cada exercício passou a ter o salto de carga real
+     do aparelho, conforme o parecer do professor. A ideia de subir uma
+     porcentagem foi descartada: o app tem que oferecer peso que existe na
+     máquina. Smith, supino sentado e goblet vão de 2 em 2; o resto fica de 1
+     em 1, e nos aparelhos de barra esse 1 quer dizer uma barra. */
+  if (versaoSalva < 3) {
+    DADOS_INICIAIS.exercicios.forEach(semente => {
+      const meu = banco.exercicios.find(e => e.id === semente.id);
+      if (meu) meu.incrementoKg = semente.incrementoKg;
+    });
+    banco.versaoDosDados = 3;
+    mudou = true;
+  }
+
   if (mudou) salvarBanco();
 }
 
@@ -283,7 +297,27 @@ function fechouOTopo(item, itemDoTreino) {
   return true;
 }
 
-/* Duas regras de sugestão, e são as únicas. Nada aqui é conselho
+/* O salto de carga não pegou?
+   Pedido do professor em 10/09/2026: se você subiu o peso e na sessão
+   seguinte caiu ABAIXO do mínimo da faixa, ou apareceu desconforto, aquele
+   salto ainda era cedo. Aí o certo é voltar para a carga de antes e
+   construir de novo até o topo.
+
+   Se você ficou dentro da faixa, mesmo perdendo repetição, está tudo bem:
+   é esperado cair de 12 para 9 depois de subir. Não mexe. */
+function saltoNaoPegou(recente, anterior, itemDoTreino) {
+  if (!anterior) return false;
+  const cargaNova  = cargaDoItem(recente.item);
+  const cargaVelha = cargaDoItem(anterior.item);
+  if (cargaNova === null || cargaVelha === null) return false;
+  if (cargaNova <= cargaVelha) return false;   // não houve salto nenhum
+  const caiu  = recente.item.series.some(s => s.reps < itemDoTreino.repMin);
+  const nivel = recente.item.desconforto && recente.item.desconforto.nivel;
+  const doeu  = nivel === 'moderado' || nivel === 'forte';
+  return caiu || doeu;
+}
+
+/* Três regras de sugestão, e são as únicas. Nada aqui é conselho
    médico nem regra universal: foi o que nós dois combinamos.
 
    1. CARGA LEVE (caminho curto). Uma sessão só, com todas as séries no
@@ -293,6 +327,10 @@ function fechouOTopo(item, itemDoTreino) {
    2. PROGRESSÃO DUPLA (caminho normal). Duas sessões seguidas fechando
       o topo com folga (RIR 2 ou mais) e a MESMA carga nas duas. Se a
       carga mudou no meio, a contagem recomeça.
+
+   3. VOLTAR. O salto anterior não pegou: sugere a carga de antes. Esta
+      vem primeiro, porque não adianta pensar em subir enquanto o último
+      aumento ainda não assentou.
 
    Devolve { carga, motivo } ou null quando não há o que sugerir. */
 function sugestaoDeCarga(itemDoTreino) {
@@ -304,6 +342,11 @@ function sugestaoDeCarga(itemDoTreino) {
 
   const salto = exercicio.incrementoKg || banco.config.incrementoPadraoKg;
   const somar = carga => Math.round((carga + salto) * 100) / 100;   // Math.round [nativo]
+
+  /* 0. o salto anterior não pegou: sugere voltar */
+  if (ultimas.length >= 2 && saltoNaoPegou(ultimas[0], ultimas[1], itemDoTreino)) {
+    return { carga: cargaDoItem(ultimas[1].item), motivo: 'voltar' };
+  }
 
   /* 1. carga leve: basta a sessão mais recente */
   const recente = ultimas[0];
@@ -1461,6 +1504,8 @@ function desenharCartao(itemDoTreino, i) {
   if (sugerida) {
     const recado = sugerida.motivo === 'leve'
       ? 'Carga parece leve para a faixa. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.'
+      : sugerida.motivo === 'voltar'
+      ? 'Esse salto ainda não pegou. Dá para voltar para <b>' + numero(sugerida.carga) + ' kg</b> e subir de novo mais pra frente.'
       : 'Duas sessões no topo. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.';
     html += '<div class="sugestao">' +
       '<span>' + recado + '</span>' +
