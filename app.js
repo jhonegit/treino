@@ -33,57 +33,247 @@
    reserva para este endereço. Sobrevive a fechar o app e desligar
    o celular. Só guarda texto, por isso o vai e vem com JSON. */
 
-const CHAVE_BANCO  = 'treino.banco';        // catálogo + treinos já feitos
-const CHAVE_SESSAO = 'treino.sessaoAtual';  // o treino de agora
-const CHAVE_FOTO   = 'treino.foto.';        // uma chave por aparelho
-const CHAVE_COPIA  = 'treino.copiaAntesDaFicha4';  // rede de segurança, ver guardarCopiaDeSeguranca
+/* As chaves têm o id da PESSOA no meio:
+     treino.banco.jhone          treino.banco.eliete
+     treino.sessaoAtual.jhone    treino.sessaoAtual.eliete
+     treino.foto.jhone.esteira
+
+   As chaves sem id no meio (treino.banco, treino.sessaoAtual) são do
+   formato antigo, de quando o app tinha uma pessoa só. Depois da
+   migração elas continuam guardadas no aparelho de propósito: são a
+   cópia de segurança do estado anterior. Nada é apagado. */
+
+const CHAVE_PERFIS = 'treino.perfis';       // quem são as pessoas do app
+const RAIZ_BANCO   = 'treino.banco';        // catálogo + treinos já feitos
+const RAIZ_SESSAO  = 'treino.sessaoAtual';  // o treino de agora
+const RAIZ_FOTO    = 'treino.foto.';        // uma chave por aparelho
+
+/* A copia guardada antes da ficha nova de 11/09/2026, que e de UMA
+   pessoa so: ela nasceu antes dos perfis existirem. Continua aqui
+   como rede de seguranca. Ver guardarCopiaDeSeguranca. */
+const CHAVE_COPIA  = 'treino.copiaAntesDaFicha4';
+
+const VERSAO_DO_FORMATO = 3;   // 3 = formato com perfis
+
+/* Enquanto a migração não terminar bem, o primeiro perfil continua
+   lendo e gravando nas chaves antigas. O app funciona igual e nada
+   fica pela metade. */
+function modoAntigo(id) {
+  return !!(perfis && perfis.provisorio && perfis.lista[0] && id === perfis.lista[0].id);
+}
+
+function chaveBanco(id)  { return modoAntigo(id) ? RAIZ_BANCO  : RAIZ_BANCO  + '.' + id; }
+function chaveSessao(id) { return modoAntigo(id) ? RAIZ_SESSAO : RAIZ_SESSAO + '.' + id; }
+function prefixoFoto(id) { return modoAntigo(id) ? RAIZ_FOTO   : RAIZ_FOTO   + id + '.'; }
+
+function comoJson(texto) {
+  if (!texto) return null;
+  try { return JSON.parse(texto); } catch (erro) { return null; }   // JSON.parse [nativo]
+}
+
+/* Todas as chaves da gaveta que começam com um pedaço de texto.
+   localStorage.key e .length [navegador] servem para varrer a gaveta. */
+function chavesComPrefixo(prefixo) {
+  const chaves = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.indexOf(prefixo) === 0) chaves.push(chave);
+  }
+  return chaves;
+}
+
+/* Um banco só é banco se tiver as três listas. Serve para conferir
+   arquivo de backup e também dado salvo que voltou estragado. */
+function bancoValido(b) {
+  return !!b && typeof b === 'object' &&
+    Array.isArray(b.exercicios) && Array.isArray(b.treinos) && Array.isArray(b.sessoes);
+}
+
+
+/* ---------- perfis ---------- */
+
+function salvarPerfis() {
+  if (perfis.provisorio) return;
+  localStorage.setItem(CHAVE_PERFIS, JSON.stringify(perfis));
+}
+
+function acharPerfil(id)  { return perfis.lista.find(p => p.id === id) || null; }
+function perfilAtual()    { return acharPerfil(perfilId) || perfis.lista[0]; }
+function nomeDoPerfil(id) { const p = acharPerfil(id); return p ? p.nome : id; }
+
+function sementeDoPerfil(id) {
+  const p = acharPerfil(id);
+  return SEMENTES[(p && p.sementes) || id] || DADOS_INICIAIS;
+}
+
+/* A MIGRAÇÃO para o formato com perfis.
+   Três promessas: não apaga nada, roda uma vez só, e só se dá por
+   concluída depois de reler e conferir o que acabou de gravar. Se
+   qualquer passo falhar, desfaz o que escreveu e o app segue no
+   formato antigo, com os dados inteiros. */
+function migrarParaPerfis() {
+  const salvo = comoJson(localStorage.getItem(CHAVE_PERFIS));
+  if (salvo && Array.isArray(salvo.lista) && salvo.versaoDoFormato >= VERSAO_DO_FORMATO) {
+    return salvo;   // já migrado: nada a fazer
+  }
+
+  const novos = JSON.parse(JSON.stringify(PERFIS_INICIAIS));
+  const dono = novos.lista[0].id;          // quem herda os dados antigos
+  const escritas = [];                     // para desfazer se algo falhar
+
+  const antigoTexto = localStorage.getItem(RAIZ_BANCO);
+  const jaTemNovo = localStorage.getItem(RAIZ_BANCO + '.' + dono);
+
+  if (antigoTexto && !jaTemNovo) {
+    const antigo = comoJson(antigoTexto);
+    if (!bancoValido(antigo)) {
+      /* dado antigo ilegível: não escrevemos e não apagamos nada */
+      avisoDeDados = 'Não consegui ler os dados antigos guardados neste aparelho. ' +
+        'Nada foi apagado. Antes de registrar qualquer coisa, salve um backup.';
+      novos.provisorio = true;
+      return novos;
+    }
+    try {
+      localStorage.setItem(RAIZ_BANCO + '.' + dono, antigoTexto);
+      escritas.push(RAIZ_BANCO + '.' + dono);
+
+      const sessaoTexto = localStorage.getItem(RAIZ_SESSAO);
+      if (sessaoTexto) {
+        localStorage.setItem(RAIZ_SESSAO + '.' + dono, sessaoTexto);
+        escritas.push(RAIZ_SESSAO + '.' + dono);
+      }
+
+      /* treino.foto.esteira passa a ser treino.foto.jhone.esteira */
+      chavesComPrefixo(RAIZ_FOTO).forEach(chave => {
+        const resto = chave.slice(RAIZ_FOTO.length);
+        if (resto.indexOf('.') >= 0) return;              // já pertence a um perfil
+        const nova = RAIZ_FOTO + dono + '.' + resto;
+        localStorage.setItem(nova, localStorage.getItem(chave));
+        escritas.push(nova);
+      });
+
+      /* conferência: releu, continua sendo banco, e nenhum treino sumiu */
+      const conferido = comoJson(localStorage.getItem(RAIZ_BANCO + '.' + dono));
+      if (!bancoValido(conferido) || conferido.sessoes.length !== antigo.sessoes.length) {
+        throw new Error('a conferência do que foi gravado não bateu');
+      }
+    } catch (erro) {
+      escritas.forEach(chave => localStorage.removeItem(chave));
+      avisoDeDados = 'Não consegui preparar os perfis neste aparelho, provavelmente ' +
+        'por falta de espaço. Nada foi apagado e o app continua funcionando no ' +
+        'formato antigo. Salve um backup e abra de novo.';
+      novos.provisorio = true;
+      return novos;
+    }
+  }
+
+  /* a partir daqui a migração está fechada e gravada */
+  localStorage.setItem(CHAVE_PERFIS, JSON.stringify(novos));
+  return novos;
+}
+
+
+/* ---------- banco e sessão do perfil aberto ---------- */
 
 function lerBanco() {
-  const texto = localStorage.getItem(CHAVE_BANCO);
+  const texto = localStorage.getItem(chaveBanco(perfilId));
   if (!texto) {
-    // primeira abertura: copia as sementes do arquivo dados-iniciais.js
+    // primeira abertura deste perfil: copia a semente do dados-iniciais.js
     // JSON.parse e JSON.stringify [nativo] fazem uma cópia de verdade
-    const novo = JSON.parse(JSON.stringify(DADOS_INICIAIS));
-    localStorage.setItem(CHAVE_BANCO, JSON.stringify(novo));
+    const novo = JSON.parse(JSON.stringify(sementeDoPerfil(perfilId)));
+    localStorage.setItem(chaveBanco(perfilId), JSON.stringify(novo));
     return novo;
   }
-  return JSON.parse(texto);
+  const guardado = comoJson(texto);
+  if (bancoValido(guardado)) return guardado;
+
+  /* texto salvo ilegível. Em vez de trocar por um banco vazio (que
+     pareceria perda de dados), o app tranca a gravação, avisa, e
+     desenha a ficha de origem só para a tela ter o que mostrar. */
+  dadosTrancados = true;
+  avisoDeDados = 'Os dados salvos de ' + nomeDoPerfil(perfilId) + ' vieram ilegíveis. ' +
+    'Nada foi apagado e o app não vai gravar por cima. Restaure um backup.';
+  return JSON.parse(JSON.stringify(sementeDoPerfil(perfilId)));
 }
 
 function salvarBanco() {
-  localStorage.setItem(CHAVE_BANCO, JSON.stringify(banco));
+  if (dadosTrancados) return;
+  try {
+    localStorage.setItem(chaveBanco(perfilId), JSON.stringify(banco));
+  } catch (erro) {
+    mostrarFaixa('Sem espaço para gravar. Salve um backup.', false);
+  }
 }
 
-/* O banco só é copiado das sementes na PRIMEIRA abertura. Quando a
-   gente acrescenta um campo novo lá (foi o caso das ilustrações),
-   quem já usava o app ficaria sem ele. Esta função completa o que
-   falta, sem encostar no que você já registrou. */
+/* O banco só é copiado da semente na PRIMEIRA abertura do perfil.
+   Quando o app ganha um campo novo, quem já usava ficaria sem ele.
+   Esta função completa o que falta, sem encostar no que foi
+   registrado e SEM reescrever nome de exercício toda vez que abre. */
 function completarComSementes() {
+  const semente = sementeDoPerfil(perfilId);
   let mudou = false;
 
-  DADOS_INICIAIS.exercicios.forEach(semente => {
-    const meu = banco.exercicios.find(e => e.id === semente.id);
-    if (!meu) { banco.exercicios.push(JSON.parse(JSON.stringify(semente))); mudou = true; return; }
-    // a ilustração pertence ao app, não a você: sempre segue as sementes.
-    // É o que troca os desenhos antigos pelos novos sem apagar histórico.
-    if (meu.ilustracao !== semente.ilustracao) { meu.ilustracao = semente.ilustracao; mudou = true; }
-    if (meu.nome !== semente.nome) { meu.nome = semente.nome; mudou = true; }
-    if (!!meu.emTeste !== !!semente.emTeste) { meu.emTeste = !!semente.emTeste; mudou = true; }
+  /* ficha esperando o fim do treino pertence a UMA pessoa. Ao abrir o
+     banco de alguem, a marca recomeca do zero e e remarcada abaixo se
+     for o caso. Assim ela nunca atravessa de um perfil para o outro. */
+  fichaPendente = false;
+
+  /* lugares que passaram a existir depois */
+  if (!Array.isArray(banco.caminhadas)) { banco.caminhadas = []; mudou = true; }
+  if (!banco.config) { banco.config = {}; mudou = true; }
+  ['regraProgressao', 'metaSemanalMin', 'fase', 'telasDeAcompanhamento', 'incrementoPadraoKg']
+    .forEach(campo => {
+      if (banco.config[campo] === undefined && semente.config[campo] !== undefined) {
+        banco.config[campo] = semente.config[campo];
+        mudou = true;
+      }
+    });
+  if (!banco.config.regraProgressao) { banco.config.regraProgressao = 'classica'; mudou = true; }
+
+  /* exercício ou treino que a semente ganhou depois entra no catálogo.
+     O que já existe NÃO é reescrito: nome trocado por você fica. */
+  semente.exercicios.forEach(s => {
+    if (!banco.exercicios.find(e => e.id === s.id)) {
+      banco.exercicios.push(JSON.parse(JSON.stringify(s)));
+      mudou = true;
+    }
+  });
+  semente.treinos.forEach(s => {
+    if (!banco.treinos.find(t => t.id === s.id)) {
+      banco.treinos.push(JSON.parse(JSON.stringify(s)));
+      mudou = true;
+    }
   });
 
-  /* Mudança de versão dos dados. Cada número novo é uma correção que
-     precisa alcançar quem já vinha usando o app.
-     Versão 2 (04/09/2026): a carga passou a subir de 1 em 1 kg, porque
-     as anilhas da academia não fecham de 2,5 em 2,5. */
+  /* Desenho que FALTA e buraco, nao escolha sua: e sempre recolocado.
+     Trocar um desenho antigo pelo novo, isso sim so acontece quando a
+     versao dos dados sobe. E o NOME nunca e reescrito por conta propria. */
+  semente.exercicios.forEach(s => {
+    const meu = banco.exercicios.find(e => e.id === s.id);
+    if (meu && !meu.ilustracao && s.ilustracao) { meu.ilustracao = s.ilustracao; mudou = true; }
+  });
+
   banco.sessoes.forEach((s, n) => {
     if (!s.id) { s.id = 's' + n + '-' + (s.data || '').replace(/-/g, ''); mudou = true; }
   });
 
+  /* Mudança de versão dos dados. Cada número novo é uma correção que
+     precisa alcançar quem já vinha usando o app, e roda UMA vez.
+     Versão 2 (04/09/2026): a carga passou a subir de 1 em 1 kg, porque
+     as anilhas da academia não fecham de 2,5 em 2,5. */
   const versaoSalva = banco.versaoDosDados || 1;
-  if (versaoSalva < 2) {
-    DADOS_INICIAIS.exercicios.forEach(semente => {
-      const meu = banco.exercicios.find(e => e.id === semente.id);
-      if (meu) meu.incrementoKg = semente.incrementoKg;
+
+  /* Os passos abaixo sao correcoes da ficha DELE, que existia antes dos
+     perfis. Por isso todos conferem fichaDele: nenhum pode encostar no
+     banco de outra pessoa. Quem nasce depois ja nasce na versao atual. */
+  const fichaDele = semente === DADOS_INICIAIS;
+
+  if (fichaDele && versaoSalva < 2) {
+    DADOS_INICIAIS.exercicios.forEach(s => {
+      const meu = banco.exercicios.find(e => e.id === s.id);
+      if (!meu) return;
+      meu.ilustracao = s.ilustracao;                       // o desenho e do app
+      meu.incrementoKg = s.incrementoKg;
     });
     banco.config.incrementoPadraoKg = DADOS_INICIAIS.config.incrementoPadraoKg;
     banco.versaoDosDados = 2;
@@ -95,7 +285,7 @@ function completarComSementes() {
      porcentagem foi descartada: o app tem que oferecer peso que existe na
      máquina. Smith, supino sentado e goblet vão de 2 em 2; o resto fica de 1
      em 1, e nos aparelhos de barra esse 1 quer dizer uma barra. */
-  if (versaoSalva < 3) {
+  if (fichaDele && versaoSalva < 3) {
     DADOS_INICIAIS.exercicios.forEach(semente => {
       const meu = banco.exercicios.find(e => e.id === semente.id);
       if (meu) meu.incrementoKg = semente.incrementoKg;
@@ -111,7 +301,7 @@ function completarComSementes() {
 
      Esta é a única parte que reescreve a LISTA DO DIA. Ela roda uma vez só:
      quando termina, versaoDosDados vira 4 e nunca mais volta aqui. */
-  if (versaoSalva < 4) {
+  if (fichaDele && versaoSalva < 4) {
     if (mudou) salvarBanco();
     aplicarFichaNova();
     return;
@@ -141,6 +331,10 @@ function guardarCopiaDeSeguranca() {
 }
 
 function aplicarFichaNova() {
+  /* trava de seguranca: esta ficha e a dele. Se por algum caminho ela
+     for chamada com outro perfil aberto, nao faz nada. */
+  if (sementeDoPerfil(perfilId) !== DADOS_INICIAIS) return;
+
   const emAndamento = lerSessaoSalva();
   if (emAndamento && sessaoTemRegistro(emAndamento)) { fichaPendente = true; return; }
 
@@ -175,30 +369,107 @@ function aplicarFichaPendente() {
 }
 
 function lerSessaoSalva() {
-  const texto = localStorage.getItem(CHAVE_SESSAO);
-  return texto ? JSON.parse(texto) : null;
+  return comoJson(localStorage.getItem(chaveSessao(perfilId)));
 }
 
 /* Grava a sessão a cada toque. Se ela ainda está zerada, não grava:
    só espiar o app não deve criar treino pendente. */
 function salvarSessao() {
-  if (!sessao) return;
+  if (!sessao || dadosTrancados) return;
   if (!sessaoTemRegistro(sessao)) {
-    localStorage.removeItem(CHAVE_SESSAO);
+    localStorage.removeItem(chaveSessao(perfilId));
     return;
   }
   sessao.atualizadaEm = new Date().toISOString();  // Date [nativo]
-  localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
+  try {
+    localStorage.setItem(chaveSessao(perfilId), JSON.stringify(sessao));
+  } catch (erro) {
+    mostrarFaixa('Sem espaço para gravar. Salve um backup.', false);
+  }
 }
 
 function apagarSessaoSalva() {
-  localStorage.removeItem(CHAVE_SESSAO);
+  localStorage.removeItem(chaveSessao(perfilId));
+}
+
+
+/* ---------- trocar de pessoa ---------- */
+
+/* Guarda o que está aberto, fecha tudo que é de tela e abre o outro
+   perfil do zero. Nada de um perfil sobra no outro: nem cronômetro,
+   nem Desfazer, nem edição, nem pergunta pela metade. */
+function trocarPerfil(id) {
+  if (!acharPerfil(id) || id === perfilId) return;
+
+  salvarSessao();
+
+  perfilId = id;
+  perfis.perfilAtual = id;
+  salvarPerfis();
+
+  dadosTrancados = false;
+  avisoDeDados = null;
+  banco = lerBanco();
+  completarComSementes();
+
+  const salva = lerSessaoSalva();
+  sessao = salva || criarSessao(proximoTreinoId());
+  perguntarSobrePendente = salva ? sessaoPrecisaDeDecisao(salva) : false;
+
+  limparTelaAoTrocar();
+  aplicarTema();
+  desenhar();
+  mostrarFaixa('Agora é o treino de ' + nomeDoPerfil(id), false);
+}
+
+function limparTelaAoTrocar() {
+  ultimaAcao = null;
+  confirmando = null;
+  editandoCarga = null;
+  serieEsperandoCarga = null;
+  repsAmpliado = null;
+  historicoAberto = null;
+  listaAberta = false;
+  painelAberto = null;
+  edicao = null;
+  sessaoApagada = null;
+  caminhadaApagada = null;
+  nomeDigitado = '';
+  backupParaRestaurar = null;
+  estadoAntesDaRestauracao = null;
+  Object.keys(cacheDeFotos).forEach(k => delete cacheDeFotos[k]);
+  pararDescanso();
+  esconderFaixa();
+}
+
+function renomearPerfil(id, nome) {
+  const p = acharPerfil(id);
+  const limpo = String(nome || '').trim().slice(0, 20);
+  if (!p || !limpo) return;
+  p.nome = limpo;
+  salvarPerfis();
+}
+
+/* A cor da tela vem do perfil: laranja num, rosa no outro.
+   O estilo.css já tem as duas paletas; aqui só dizemos qual vale. */
+function aplicarTema() {
+  const tema = perfilAtual().tema || 'laranja';
+  if (document.documentElement && document.documentElement.setAttribute) {
+    document.documentElement.setAttribute('data-tema', tema);
+  }
+  const marca = document.querySelector('meta[name="theme-color"]');
+  if (marca) marca.setAttribute('content', tema === 'rosa' ? '#d6417f' : '#f4551e');
 }
 
 
 /* =============================================================
    2. ESTADO
    ============================================================= */
+
+let perfis;                // a lista de pessoas do app
+let perfilId;              // a pessoa aberta agora
+let dadosTrancados = false;// dado salvo ilegível: o app não grava por cima
+let avisoDeDados = null;   // recado fixo no topo, quando algo deu errado
 
 let banco;                 // tudo que está salvo
 let sessao;                // o treino em andamento
@@ -210,6 +481,9 @@ let serieEsperandoCarga = null;  // repetição tocada antes de haver carga
 let repsAmpliado = null;   // índice do exercício com a grade estendida
 let historicoAberto = null;         // id do exercício com o histórico na tela
 let listaAberta = false;            // lista dos treinos já registrados
+let painelAberto = null;            // 'perfis', 'caminhadas', 'resumo' ou 'plano'
+let minutosDigitados = '';          // minutos da caminhada, enquanto são escritos
+let obsDaCaminhada = '';            // observação da caminhada, enquanto é escrita
 let edicao = null;                  // { treinoId, escolhendo } quando editando um treino
 let sessaoApagada = null;           // guardada na memória para o Desfazer
 let nomeDigitado = '';              // nome do exercício novo, enquanto é escrito
@@ -234,6 +508,19 @@ const NIVEIS  = [
   { id: 'moderado', texto: 'Moderado' },
   { id: 'forte',    texto: 'Forte' }
 ];
+
+/* O que o número da carga significa. Isto NÃO é convertido de um
+   para o outro: placa não vira quilo sem alguém informar. */
+const UNIDADES = {
+  'kg':        { curto: 'kg',           rotulo: 'Carga de hoje',                 passo: 'kg' },
+  'kg-halter': { curto: 'kg por halter', rotulo: 'Carga de hoje (peso de UM halter)', passo: 'kg' },
+  'placa':     { curto: 'placa',        rotulo: 'Carga de hoje (número da placa)', passo: 'placa' }
+};
+
+/* Passos de carga oferecidos quando o aparelho ainda não tem um. */
+const PASSOS_DE_CARGA = [1, 2, 2.5, 5];
+
+const DIAS_PARA_RESUMO = 14;   // depois disso o app oferece a revisão
 
 
 /* =============================================================
@@ -327,6 +614,127 @@ function sessaoPrecisaDeDecisao(s) {
   return horas > HORAS_ATE_PERGUNTAR;
 }
 
+/* Este perfil usa a regra de progressão mais cautelosa? */
+function regraCautelosa() {
+  return banco.config.regraProgressao === 'cautelosa';
+}
+
+/* Este perfil mostra as telas de caminhada, resumo e plano? */
+function temAcompanhamento() {
+  return !!banco.config.telasDeAcompanhamento;
+}
+
+function unidadeDe(exercicio) {
+  return UNIDADES[exercicio && exercicio.unidade] || UNIDADES['kg'];
+}
+
+/* "30 kg", "8 kg por halter", "4 placa". Sempre com a unidade junto,
+   para ninguém confundir número de placa com quilo. */
+function cargaEscrita(valor, unidade) {
+  const u = UNIDADES[unidade] || UNIDADES['kg'];
+  return numero(valor) + ' ' + u.curto;
+}
+
+/* O passo de carga daquele aparelho, ou null quando ainda não foi
+   informado. Null é resposta legítima: o app não chuta um valor. */
+function passoDeCarga(exercicio) {
+  if (typeof exercicio.incrementoKg === 'number' && exercicio.incrementoKg > 0) {
+    return exercicio.incrementoKg;
+  }
+  const padrao = banco.config.incrementoPadraoKg;
+  return (typeof padrao === 'number' && padrao > 0) ? padrao : null;
+}
+
+/* Para os botões − e + do cartão é preciso algum passo. Usar 1 aqui
+   não é sugerir carga: é ela mesma mexendo e vendo o número mudar. */
+function passoManual(exercicio) {
+  return passoDeCarga(exercicio) || 1;
+}
+
+/* O RETRATO guarda, dentro da sessão, como o exercício era naquele
+   dia: nome, unidade, quantas séries e qual faixa estavam pedidas.
+   É o que impede o histórico de ser reescrito quando a ficha muda. */
+function retratoDoItem(itemDoTreino, exercicio) {
+  return {
+    nome: exercicio.nome,
+    unidade: exercicio.unidade || 'kg',
+    semCarga: !!exercicio.semCarga,
+    porLado: !!exercicio.porLado,
+    series: itemDoTreino.series,
+    repMin: itemDoTreino.repMin,
+    repMax: itemDoTreino.repMax
+  };
+}
+
+/* O nome que o histórico deve mostrar: o do dia em que foi feito.
+   Registro antigo, de antes do retrato, fica marcado como antigo. */
+function nomeNoHistorico(item) {
+  if (item.retrato && item.retrato.nome) return item.retrato.nome;
+  const exercicio = acharExercicio(item.exercicioId);
+  return exercicio ? exercicio.nome : item.exercicioId;
+}
+
+/* Aquela execução foi feita com a MESMA prescrição de hoje?
+   Mudou faixa, número de séries ou unidade, a comparação recomeça. */
+function prescricaoIgual(retrato, itemDoTreino, exercicio) {
+  if (!retrato) return false;
+  return retrato.series === itemDoTreino.series &&
+         retrato.repMin === itemDoTreino.repMin &&
+         retrato.repMax === itemDoTreino.repMax &&
+         (retrato.unidade || 'kg') === (exercicio.unidade || 'kg') &&
+         !!retrato.porLado === !!exercicio.porLado;
+}
+
+function itemPulado(item)  { return !!item.pulado; }
+
+/* Três coisas diferentes, que não podem virar a mesma:
+     pulado                    = não realizou
+     concluído e sem séries    = realizou e não registrou
+     com séries                = realizou e registrou */
+function situacaoDoItem(item) {
+  if (item.pulado) return 'pulado';
+  if (item.series.length) return 'registrado';
+  if (item.concluido) return 'sem-registro';
+  return 'aberto';
+}
+
+
+/* ---------- semana e caminhadas ---------- */
+
+/* A segunda-feira da semana daquela data, no formato 2026-09-07. */
+function inicioDaSemana(d) {
+  const dia = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  dia.setDate(dia.getDate() - ((dia.getDay() + 6) % 7));   // segunda = 0
+  return dataLocal(dia);
+}
+
+function caminhadasDaSemana() {
+  const desde = inicioDaSemana(new Date());
+  return (banco.caminhadas || []).filter(c => c.data >= desde);
+}
+
+function minutosDaSemana() {
+  return caminhadasDaSemana().reduce((soma, c) => soma + (c.minutos || 0), 0);
+}
+
+/* O período de revisão começa no uso de verdade, não numa data
+   escrita no código: o primeiro dia com treino ou caminhada. */
+function primeiroDiaDeUso() {
+  const datas = banco.sessoes.map(s => s.data)
+    .concat((banco.caminhadas || []).map(c => c.data))
+    .filter(Boolean).sort();
+  return datas.length ? datas[0] : null;
+}
+
+function diasDeUso() {
+  const inicio = primeiroDiaDeUso();
+  if (!inicio) return 0;
+  const p = inicio.split('-');
+  const dia0 = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  const hoje = new Date();
+  return Math.floor((hoje - dia0) / 86400000) + 1;
+}
+
 
 /* =============================================================
    4. REGRAS
@@ -402,6 +810,8 @@ function saltoNaoPegou(recente, anterior, itemDoTreino) {
 
    Devolve { carga, motivo } ou null quando não há o que sugerir. */
 function sugestaoDeCarga(itemDoTreino) {
+  if (regraCautelosa()) return sugestaoCautelosa(itemDoTreino);
+
   const exercicio = acharExercicio(itemDoTreino.exercicioId);
   if (exercicio.semCarga) return null;
 
@@ -437,6 +847,75 @@ function sugestaoDeCarga(itemDoTreino) {
 }
 
 
+/* ---------- a regra cautelosa (perfil de quem está começando) ----------
+
+   Ela é mais exigente que a de cima, de propósito, e NUNCA inventa um
+   número. Para sair uma carga sugerida, tudo isto junto:
+
+     - o exercício tem carga;
+     - a fase informada não é gestação;
+     - as duas execuções mais recentes são comparáveis: mesmo aparelho
+       (o id é o aparelho), mesma unidade, mesmas séries e mesma faixa;
+     - nas duas, todas as séries de trabalho no topo da faixa ou acima;
+     - RIR informado, 2 ou mais, na última série das duas;
+     - execução marcada como boa nas duas;
+     - nenhum desconforto registrado nas duas;
+     - a mesma carga nas duas;
+     - e o passo de carga daquele aparelho já foi informado.
+
+   Faltou o passo de carga? Sai o recado sem número. Faltou RIR, ou a
+   série ficou incompleta, ou a carga mudou? Não sai nada. */
+
+function fechouOTopoCauteloso(item, itemDoTreino, exercicio) {
+  if (!prescricaoIgual(item.retrato, itemDoTreino, exercicio)) return false;
+  if (item.series.length < itemDoTreino.series) return false;
+  if (!item.series.every(s => s.reps >= itemDoTreino.repMax)) return false;
+
+  const rir = rirDoItem(item);
+  if (rir === null || rir < RIR_MINIMO_PARA_SUBIR) return false;
+
+  const nivel = item.desconforto && item.desconforto.nivel;
+  if (nivel && nivel !== 'sem') return false;        // qualquer desconforto suspende
+
+  if (item.execucao !== 'boa') return false;         // execução precisa ser informada
+  return true;
+}
+
+function sugestaoCautelosa(itemDoTreino) {
+  const exercicio = acharExercicio(itemDoTreino.exercicioId);
+  if (exercicio.semCarga) return null;
+  if (banco.config.fase === 'gestacao') return null;
+
+  const ultimas = execucoesDe(itemDoTreino.exercicioId).slice(0, SESSOES_NO_TOPO);
+  if (ultimas.length === 0) return null;
+
+  const fecharam = ultimas.filter(e => fechouOTopoCauteloso(e.item, itemDoTreino, exercicio));
+
+  /* 1. duas execuções comparáveis e iguais: aí sim pode sair número */
+  if (ultimas.length >= SESSOES_NO_TOPO && fecharam.length >= SESSOES_NO_TOPO) {
+    const cargas = ultimas.map(e => cargaDoItem(e.item));
+    if (!cargas.some(c => c === null) && cargas.every(c => c === cargas[0])) {
+      const salto = passoDeCarga(exercicio);
+      if (salto === null) {
+        return { carga: null, motivo: 'sem-passo' };
+      }
+      return {
+        carga: Math.round((cargas[0] + salto) * 100) / 100,
+        motivo: 'dupla',
+        unidade: exercicio.unidade || 'kg'
+      };
+    }
+  }
+
+  /* 2. carga que parece folgada: recado, sem número e sem atalho */
+  if (fecharam.length && rirDoItem(ultimas[0].item) >= RIR_CARGA_LEVE) {
+    return { carga: null, motivo: 'parece-leve' };
+  }
+
+  return null;
+}
+
+
 /* =============================================================
    5. AÇÕES
    ============================================================= */
@@ -451,20 +930,28 @@ function criarSessao(treinoId) {
     treinoId: treinoId,
     estado: 'emAndamento',
     itemAberto: 0,
-    itens: treino.itens.map(it => {
-      const exercicio = acharExercicio(it.exercicioId);
-      const anteriores = execucoesDe(it.exercicioId);
-      // a carga já entra preenchida com a da última vez: zero toque
-      const carga = anteriores.length ? cargaDoItem(anteriores[0].item) : null;
-      return {
-        exercicioId: it.exercicioId,
-        cargaAtualKg: exercicio.semCarga ? null : carga,
-        series: [],
-        desconforto: { nivel: null, regioes: [] },
-        observacao: '',
-        concluido: false
-      };
-    })
+    itens: treino.itens.map(it => itemNovoDaSessao(it))
+  };
+}
+
+/* Um exercício dentro do treino de hoje. O retrato guarda como ele
+   estava pedido agora, para o histórico nunca ser reescrito depois. */
+function itemNovoDaSessao(itemDoTreino) {
+  const exercicio = acharExercicio(itemDoTreino.exercicioId);
+  const anteriores = execucoesDe(itemDoTreino.exercicioId);
+  // a carga já entra preenchida com a da última vez: zero toque
+  const carga = anteriores.length ? cargaDoItem(anteriores[0].item) : null;
+  return {
+    exercicioId: itemDoTreino.exercicioId,
+    retrato: retratoDoItem(itemDoTreino, exercicio),
+    cargaAtualKg: exercicio.semCarga ? null : carga,
+    series: [],
+    desconforto: { nivel: null, regioes: [] },
+    execucao: null,        // 'boa' ou 'melhorar', informado por quem treina
+    pulado: false,         // não realizado, que é diferente de não registrado
+    motivoDoPulo: '',
+    observacao: '',
+    concluido: false
   };
 }
 
@@ -472,10 +959,21 @@ function ajustarCarga(i, delta) {
   const item = sessao.itens[i];
   const exercicio = acharExercicio(item.exercicioId);
   const base = typeof item.cargaAtualKg === 'number' ? item.cargaAtualKg : 0;
-  const salto = exercicio.incrementoKg || banco.config.incrementoPadraoKg;
+  const salto = passoManual(exercicio);
   item.cargaAtualKg = Math.max(0, Math.round((base + delta * salto) * 100) / 100);
   salvarSessao();
   desenhar();
+}
+
+/* Informar o passo daquele aparelho. Enquanto isso não acontece,
+   nenhuma carga sugerida sai com número. */
+function definirPassoDeCarga(exercicioId, passo) {
+  const exercicio = acharExercicio(exercicioId);
+  if (!exercicio) return;
+  exercicio.incrementoKg = passo;
+  salvarBanco();
+  desenhar();
+  mostrarFaixa('Passo do aparelho: ' + numero(passo), false);
 }
 
 /* Abre o campo de digitar a carga DENTRO do cartão. Sem pop up. */
@@ -514,9 +1012,14 @@ function registrarSerie(i, reps) {
   }
 
   const serie = { reps: reps };
-  if (!exercicio.semCarga) serie.cargaKg = item.cargaAtualKg;
+  if (!exercicio.semCarga) {
+    serie.cargaKg = item.cargaAtualKg;
+    serie.unidade = exercicio.unidade || 'kg';   // fica gravado no registro
+  }
+  if (exercicio.porLado) serie.porLado = true;   // 8 quer dizer 8 de cada lado
   item.series.push(serie);
 
+  if (item.pulado) { item.pulado = false; item.motivoDoPulo = ''; }
   repsAmpliado = null;
   ultimaAcao = { tipo: 'serie', i: i };
   salvarSessao();
@@ -552,7 +1055,137 @@ function alternarRegiao(i, regiao) {
   desenhar();
 }
 
+/* Como a execução foi, na avaliação de quem treinou. Entra na regra
+   cautelosa: sem "boa" informado, não sai sugestão de aumento. */
+function definirExecucao(i, valor) {
+  const item = sessao.itens[i];
+  item.execucao = (item.execucao === valor) ? null : valor;
+  salvarSessao();
+  desenhar();
+}
+
+/* NÃO REALIZADO é diferente de realizado sem registrar. Marcar aqui
+   não cria série nenhuma, e o histórico não fica devendo nada. */
+function pularExercicio(i) {
+  const item = sessao.itens[i];
+  if (item.series.length) {
+    mostrarFaixa('Este exercício já tem série registrada hoje', false);
+    return;
+  }
+  item.pulado = true;
+  item.concluido = true;
+  const proximo = sessao.itens.findIndex(it => !it.concluido);
+  sessao.itemAberto = proximo >= 0 ? proximo : i;
+  ultimaAcao = { tipo: 'pular', i: i };
+  salvarSessao();
+  desenhar();
+  mostrarFaixa('Marcado como não realizado', true);
+}
+
+function desmarcarPulo(i) {
+  const item = sessao.itens[i];
+  item.pulado = false;
+  item.motivoDoPulo = '';
+  item.concluido = false;
+  sessao.itemAberto = i;
+  salvarSessao();
+  desenhar();
+}
+
+/* Escolher o aparelho de verdade daquele lugar da ficha.
+   Cada variante é um exercício separado, com histórico separado: o
+   que já foi feito no aparelho anterior continua onde estava. A troca
+   vale para os três treinos, para a identidade ficar a mesma em A, B
+   e C, como pede a comparação entre sessões. */
+function escolherVariante(i, novoId) {
+  const antigo = sessao.itens[i].exercicioId;
+  const novo = acharExercicio(novoId);
+  if (!novo || novoId === antigo) return;
+
+  const jaRegistrou = sessao.itens.some(it => it.exercicioId === antigo && it.series.length > 0);
+  if (jaRegistrou) {
+    mostrarFaixa('Hoje já tem série registrada neste exercício. Dá para escolher o aparelho na próxima sessão.', false);
+    return;
+  }
+
+  banco.treinos.forEach(t => t.itens.forEach(it => {
+    if (it.exercicioId === antigo) it.exercicioId = novoId;
+  }));
+  salvarBanco();
+
+  const doTreino = acharTreino(sessao.treinoId).itens;
+  sessao.itens.forEach((it, n) => {
+    if (it.exercicioId === antigo) sessao.itens[n] = itemNovoDaSessao(doTreino[n]);
+  });
+  salvarSessao();
+  desenhar();
+  mostrarFaixa(novo.nome + '. O histórico do aparelho anterior continua guardado.', false);
+}
+
+
+/* ---------- caminhadas ----------
+   Ficam separadas do treino de musculação de propósito: não empurram
+   a fila A > B > C e não viram minuto de musculação nem o contrário. */
+
+function registrarCaminhada() {
+  const minutos = Math.round(paraNumero(minutosDigitados) || 0);
+  if (!minutos || minutos < 1) {
+    mostrarFaixa('Escreva quantos minutos você caminhou', false);
+    return;
+  }
+  if (minutos > 600) {
+    mostrarFaixa('Confira os minutos: o app aceita até 600', false);
+    return;
+  }
+  banco.caminhadas.push({
+    id: 'c' + Date.now(),
+    data: dataLocal(),
+    minutos: minutos,
+    observacao: (obsDaCaminhada || '').trim().slice(0, 140)
+  });
+  minutosDigitados = '';
+  obsDaCaminhada = '';
+  salvarBanco();
+  ultimaAcao = { tipo: 'caminhada' };
+  desenhar();
+  mostrarFaixa(minutos + ' minutos registrados', true);
+}
+
+let caminhadaApagada = null;
+
+function apagarCaminhada(id) {
+  const pos = banco.caminhadas.findIndex(c => c.id === id);
+  if (pos < 0) return;
+  caminhadaApagada = { posicao: pos, caminhada: banco.caminhadas[pos] };
+  banco.caminhadas.splice(pos, 1);
+  salvarBanco();
+  ultimaAcao = { tipo: 'apagar-caminhada' };
+  desenhar();
+  mostrarFaixa('Caminhada apagada', true);
+}
+
+function mudarMetaSemanal(delta) {
+  const atual = banco.config.metaSemanalMin || 0;
+  banco.config.metaSemanalMin = Math.min(300, Math.max(0, atual + delta));
+  salvarBanco();
+  desenhar();
+}
+
+/* A fase é informada à mão e dá para voltar atrás. Marcar gestação
+   suspende as sugestões automáticas de aumento e pede revisão com o
+   acompanhamento pré-natal. Não apaga nada e não trava o registro. */
+function mudarFase(nova) {
+  banco.config.fase = nova;
+  salvarBanco();
+  confirmando = null;
+  desenhar();
+  mostrarFaixa(nova === 'gestacao'
+    ? 'Sugestões automáticas de aumento suspensas'
+    : 'Fase anterior à gestação', false);
+}
+
 function concluirExercicio(i) {
+  sessao.itens[i].pulado = false;
   sessao.itens[i].concluido = true;
   const proximo = sessao.itens.findIndex(it => !it.concluido);
   sessao.itemAberto = proximo >= 0 ? proximo : i;
@@ -566,6 +1199,8 @@ function concluirExercicio(i) {
 function abrirHistorico(exercicioId) {
   historicoAberto = exercicioId;
   listaAberta = false;
+  painelAberto = null;
+  edicao = null;          // o painel mostra um de cada vez
   desenhar();
 }
 
@@ -573,18 +1208,36 @@ function abrirEdicao(treinoId) {
   edicao = { treinoId: treinoId, escolhendo: null };
   historicoAberto = null;
   listaAberta = false;
+  painelAberto = null;
   desenhar();
 }
 
 function abrirListaDeTreinos() {
   listaAberta = true;
   historicoAberto = null;
+  painelAberto = null;
+  desenhar();
+}
+
+/* Os painéis novos: perfis, caminhadas, resumo e sobre o plano. */
+function abrirPainel(nome) {
+  painelAberto = nome;
+  historicoAberto = null;
+  listaAberta = false;
+  edicao = null;
+  /* olhar o resumo já conta como revisão feita: o convite do topo
+     só volta depois de mais duas semanas de uso */
+  if (nome === 'resumo' && primeiroDiaDeUso()) {
+    banco.config.resumoVistoEm = dataLocal();
+    salvarBanco();
+  }
   desenhar();
 }
 
 function fecharHistorico() {
   historicoAberto = null;
   listaAberta = false;
+  painelAberto = null;
   edicao = null;
   desenhar();
 }
@@ -604,9 +1257,22 @@ function volumeDoItem(item) {
   }, 0);
 }
 
-function desenharGrafico(execucoes, modo) {
+/* A unidade de um registro: a que ficou gravada nele, não a de hoje. */
+function unidadeDoItemRegistrado(item) {
+  const comUnidade = item.series.filter(function (s) { return s.unidade; });
+  if (comUnidade.length) return comUnidade[comUnidade.length - 1].unidade;
+  return (item.retrato && item.retrato.unidade) || 'kg';
+}
+
+function desenharGrafico(execucoes, modo, unidade) {
+  /* só entram no gráfico os registros da MESMA unidade do mais
+     recente: placa e quilo não podem virar a mesma linha */
+  const mesmos = execucoes.filter(function (e) {
+    return unidadeDoItemRegistrado(e.item) === unidade;
+  });
+
   /* do mais antigo para o mais novo, no máximo 15 pontos */
-  const pontos = execucoes.slice(0, 15).reverse().map(function (e) {
+  const pontos = mesmos.slice(0, 15).reverse().map(function (e) {
     return { data: e.data, valor: modo === 'volume' ? volumeDoItem(e.item) : cargaDoItem(e.item) };
   }).filter(function (p) { return typeof p.valor === 'number'; });
 
@@ -632,7 +1298,7 @@ function desenharGrafico(execucoes, modo) {
   }).join('');
 
   const ultimo = pontos[pontos.length - 1];
-  const unidade = modo === 'volume' ? '' : ' kg';
+  const sufixo = modo === 'volume' ? '' : ' ' + (UNIDADES[unidade] || UNIDADES['kg']).curto;
 
   return '<svg class="grafico" viewBox="0 0 320 126" role="img">' +
     '<line class="eixo" x1="' + E + '" y1="' + B + '" x2="' + D + '" y2="' + B + '" />' +
@@ -643,23 +1309,31 @@ function desenharGrafico(execucoes, modo) {
     '<text class="marca-eixo" x="' + E + '" y="120">' + dataCurta(pontos[0].data) + '</text>' +
     '<text class="marca-eixo fim" x="' + D + '" y="120">' + dataCurta(ultimo.data) + '</text>' +
     '<text class="valor-topo" x="' + D + '" y="' + Math.max(12, y(ultimo.valor) - 8).toFixed(1) + '">' +
-      esc(numero(ultimo.valor)) + unidade + '</text>' +
+      esc(numero(ultimo.valor)) + sufixo + '</text>' +
   '</svg>';
 }
 
-function blocoDoGrafico(execucoes) {
+function blocoDoGrafico(execucoes, exercicio) {
+  const unidade = execucoes.length
+    ? unidadeDoItemRegistrado(execucoes[0].item)
+    : (exercicio.unidade || 'kg');
+  const porLado = execucoes.length
+    ? !!(execucoes[0].item.retrato && execucoes[0].item.retrato.porLado)
+    : !!exercicio.porLado;
+
   return '<div class="caixa-grafico">' +
     '<div class="abas-grafico">' +
-      '<button class="btn-pequeno' + (graficoModo === 'carga' ? ' btn-laranja' : '') +
+      '<button class="btn-pequeno' + (graficoModo === 'carga' ? ' btn-destaque' : '') +
         '" data-acao="grafico-carga">Carga</button>' +
-      '<button class="btn-pequeno' + (graficoModo === 'volume' ? ' btn-laranja' : '') +
+      '<button class="btn-pequeno' + (graficoModo === 'volume' ? ' btn-destaque' : '') +
         '" data-acao="grafico-volume">Volume</button>' +
     '</div>' +
-    desenharGrafico(execucoes, graficoModo) +
+    desenharGrafico(execucoes, graficoModo, unidade) +
     '<div class="legenda-grafico">' +
       (graficoModo === 'carga'
-        ? 'Peso levantado em cada sessão.'
+        ? 'Peso levantado em cada sessão, em ' + esc((UNIDADES[unidade] || UNIDADES['kg']).curto) + '.'
         : 'Peso vezes repetições somado em cada sessão, o trabalho do dia.') +
+      (porLado ? ' As repetições são por lado.' : '') +
     '</div>' +
   '</div>';
 }
@@ -724,14 +1398,15 @@ function sincronizarSessao() {
   sessao.itens.forEach(item => { guardado[item.exercicioId] = item; });
 
   sessao.itens = acharTreino(sessao.treinoId).itens.map(it => {
-    if (guardado[it.exercicioId]) return guardado[it.exercicioId];
-    const exercicio = acharExercicio(it.exercicioId);
-    const anteriores = execucoesDe(it.exercicioId);
-    return {
-      exercicioId: it.exercicioId,
-      cargaAtualKg: exercicio.semCarga ? null : (anteriores.length ? cargaDoItem(anteriores[0].item) : null),
-      series: [], desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: false
-    };
+    const antigo = guardado[it.exercicioId];
+    if (!antigo) return itemNovoDaSessao(it);
+    /* o retrato só é atualizado enquanto nada foi registrado. Depois
+       da primeira série ele fica congelado: mudar a ficha não muda o
+       que já foi feito. */
+    if (antigo.series.length === 0) {
+      antigo.retrato = retratoDoItem(it, acharExercicio(it.exercicioId));
+    }
+    return antigo;
   });
   if (sessao.itemAberto >= sessao.itens.length) sessao.itemAberto = 0;
   salvarSessao();
@@ -953,6 +1628,7 @@ function executarConfirmacao() {
   if (pedido.tipo === 'concluir-treino') return arquivarSessao('concluida');
   if (pedido.tipo === 'restaurar')       return restaurarBackup();
   if (pedido.tipo === 'apagar-sessao')   return apagarSessao(pedido.sessaoId);
+  if (pedido.tipo === 'fase')            return mudarFase(pedido.valor);
   if (pedido.tipo === 'descartar') {
     apagarSessaoSalva();
     aplicarFichaPendente();
@@ -963,29 +1639,72 @@ function executarConfirmacao() {
   }
 }
 
-/* Backup: baixa um arquivo .json com tudo, fotos incluídas.
-   Blob e URL.createObjectURL [navegador] montam um arquivo na memória
-   e criam um endereço temporário para ele. */
-function exportarBackup() {
-  const fotos = {};
-  banco.equipamentos.forEach(eq => {
-    const foto = lerFoto(eq.id);
-    if (foto) fotos[eq.id] = foto;
+/* =============================================================
+   BACKUP
+
+   O arquivo guarda a VERSÃO do formato, quem é cada pessoa e, de
+   cada uma, o banco, o treino em andamento, as caminhadas e as
+   fotos. Dá para salvar só quem está aberto ou todo mundo.
+
+   Blob e URL.createObjectURL [navegador] montam um arquivo na
+   memória e criam um endereço temporário para ele.
+   ============================================================= */
+
+function montarBackup(ids) {
+  const dados = {};
+  ids.forEach(id => {
+    const guardado = (id === perfilId)
+      ? banco
+      : comoJson(localStorage.getItem(chaveBanco(id)));
+    if (!bancoValido(guardado)) return;
+
+    const prefixo = prefixoFoto(id);
+    const fotos = {};
+    chavesComPrefixo(prefixo).forEach(chave => {
+      fotos[chave.slice(prefixo.length)] = localStorage.getItem(chave);
+    });
+
+    const perfil = acharPerfil(id);
+    dados[id] = {
+      nome: perfil ? perfil.nome : id,
+      tema: perfil ? perfil.tema : 'laranja',
+      sementes: perfil ? perfil.sementes : id,
+      banco: guardado,
+      sessaoAtual: comoJson(localStorage.getItem(chaveSessao(id))),
+      fotos: fotos
+    };
   });
-  const tudo = {
+
+  return {
     app: 'treino',
+    versaoDoFormato: VERSAO_DO_FORMATO,
     salvoEm: new Date().toISOString(),
-    banco: banco,
-    sessaoAtual: lerSessaoSalva(),
-    fotos: fotos
+    dados: dados
   };
-  const arquivo = new Blob([JSON.stringify(tudo, null, 2)], { type: 'application/json' });
+}
+
+function baixarArquivo(nome, conteudo) {
+  const arquivo = new Blob([conteudo], { type: 'application/json' });
   const endereco = URL.createObjectURL(arquivo);
   const link = document.createElement('a');
   link.href = endereco;
-  link.download = 'treino-backup-' + dataLocal() + '.json';
+  link.download = nome;
   link.click();
   URL.revokeObjectURL(endereco);
+}
+
+function exportarBackup(tudo) {
+  salvarSessao();
+  const ids = tudo ? perfis.lista.map(p => p.id) : [perfilId];
+  const pacote = montarBackup(ids);
+  if (!Object.keys(pacote.dados).length) {
+    mostrarFaixa('Não há nada para salvar ainda', false);
+    return;
+  }
+  baixarArquivo(
+    'treino-backup-' + (tudo ? 'todos' : perfilId) + '-' + dataLocal() + '.json',
+    JSON.stringify(pacote, null, 2)
+  );
   mostrarFaixa('Backup salvo na pasta de downloads', false);
 }
 
@@ -997,15 +1716,27 @@ function pedirBackup() {
   document.getElementById('arquivo-backup').click();
 }
 
-/* Confere se o arquivo escolhido é mesmo um backup deste app antes de
-   deixar qualquer coisa acontecer. */
+/* Confere se o arquivo é mesmo um backup deste app, e de qual
+   formato, antes de deixar qualquer coisa acontecer.
+   Devolve null quando o arquivo não serve. */
 function conferirBackup(texto) {
-  let dados;
-  try { dados = JSON.parse(texto); } catch (erro) { return null; }
+  const dados = comoJson(texto);
   if (!dados || typeof dados !== 'object') return null;
-  const b = dados.banco;
-  if (!b || !Array.isArray(b.exercicios) || !Array.isArray(b.treinos) || !Array.isArray(b.sessoes)) return null;
-  return dados;
+
+  /* formato com perfis: um banco por pessoa */
+  if (dados.dados && typeof dados.dados === 'object') {
+    const ids = Object.keys(dados.dados).filter(id => {
+      const p = dados.dados[id];
+      return p && bancoValido(p.banco);
+    });
+    if (!ids.length) return null;
+    return { formato: 'perfis', ids: ids, dados: dados };
+  }
+
+  /* formato antigo: um banco só, sem dono escrito no arquivo */
+  if (bancoValido(dados.banco)) return { formato: 'antigo', dados: dados };
+
+  return null;
 }
 
 /* Lê o arquivo e monta a pergunta na tela, com o que tem dentro dele.
@@ -1014,84 +1745,150 @@ function lerArquivoDeBackup(arquivo) {
   if (!arquivo) return;
   const leitor = new FileReader();          // FileReader [navegador]
   leitor.onload = function () {
-    const dados = conferirBackup(leitor.result);
-    if (!dados) {
+    const backup = conferirBackup(leitor.result);
+    if (!backup) {
       mostrarFaixa('Esse arquivo não é um backup do Treino', false);
       return;
     }
-    backupParaRestaurar = dados;
-    const quantasFotos = dados.fotos ? Object.keys(dados.fotos).length : 0;  // Object.keys [nativo]
-    confirmando = {
-      tipo: 'restaurar',
-      texto: 'Backup ' + (dados.salvoEm ? 'de ' + dataCurta(dados.salvoEm.slice(0, 10)) : 'sem data') +
-             ', com ' + dados.banco.sessoes.length + ' treinos registrados e ' +
-             quantasFotos + (quantasFotos === 1 ? ' foto' : ' fotos') +
-             '. Restaurar apaga o que está no app agora e põe isso no lugar.',
-      botao: 'Restaurar'
-    };
+    backupParaRestaurar = backup;
+    const quando = backup.dados.salvoEm
+      ? 'de ' + dataCurta(backup.dados.salvoEm.slice(0, 10))
+      : 'sem data';
+
+    if (backup.formato === 'perfis') {
+      const resumo = backup.ids.map(id => {
+        const p = backup.dados.dados[id];
+        return (p.nome || id) + ' (' + p.banco.sessoes.length + ')';
+      }).join(', ');
+      confirmando = {
+        tipo: 'restaurar',
+        texto: 'Backup ' + quando + ', com: ' + resumo + '. O número entre parênteses é ' +
+               'quantos treinos registrados. Restaurar troca o que está no app agora ' +
+               'por isso, para cada uma dessas pessoas.',
+        botao: 'Restaurar'
+      };
+    } else {
+      /* backup antigo não diz de quem é. O app NÃO adivinha: pergunta. */
+      confirmando = {
+        tipo: 'destino-backup',
+        texto: 'Este backup ' + quando + ' é do formato antigo, com ' +
+               backup.dados.banco.sessoes.length + ' treinos registrados, e não diz de ' +
+               'quem é. Para qual pessoa ele deve ir? O que estiver guardado nessa ' +
+               'pessoa será trocado.',
+        opcoes: perfis.lista.map(p => ({
+          texto: 'Colocar em ' + p.nome,
+          acao: 'destino-perfil',
+          id: p.id
+        }))
+      };
+    }
     desenhar();
   };
   leitor.readAsText(arquivo);
 }
 
-/* Todas as chaves de foto guardadas hoje. localStorage.key e .length
-   [navegador] servem justamente para varrer a gaveta. */
-function chavesDeFoto() {
-  const chaves = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const chave = localStorage.key(i);
-    if (chave && chave.indexOf(CHAVE_FOTO) === 0) chaves.push(chave);
-  }
-  return chaves;
-}
-
-/* Uma cópia de tudo que está no app agora, guardada só na memória.
+/* Uma cópia de TUDO que está na gaveta agora, guardada na memória.
    É o que o botão Desfazer usa depois de uma restauração. */
 function retratoDeAgora() {
-  const fotos = {};
-  chavesDeFoto().forEach(chave => { fotos[chave] = localStorage.getItem(chave); });
-  return {
-    banco: JSON.parse(JSON.stringify(banco)),
-    sessaoAtual: lerSessaoSalva(),
-    fotos: fotos
-  };
-}
-
-function aplicarEstado(estado, fotosComPrefixo) {
-  banco = JSON.parse(JSON.stringify(estado.banco));
-  salvarBanco();
-
-  chavesDeFoto().forEach(chave => localStorage.removeItem(chave));
-  Object.keys(cacheDeFotos).forEach(id => delete cacheDeFotos[id]);
-  const fotos = estado.fotos || {};
-  Object.keys(fotos).forEach(nome => {
-    // no arquivo de backup a chave é o id do aparelho; no retrato da
-    // memória ela já vem com o prefixo. Os dois casos caem aqui.
-    const chave = fotosComPrefixo ? nome : CHAVE_FOTO + nome;
-    try { localStorage.setItem(chave, fotos[nome]); } catch (erro) { /* sem espaço */ }
+  const chaves = {};
+  chavesComPrefixo('treino.').forEach(chave => {
+    chaves[chave] = localStorage.getItem(chave);
   });
-
-  if (estado.sessaoAtual) {
-    sessao = estado.sessaoAtual;
-    localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
-    perguntarSobrePendente = sessaoPrecisaDeDecisao(sessao);
-  } else {
-    apagarSessaoSalva();
-    perguntarSobrePendente = false;
-    sessao = criarSessao(proximoTreinoId());
-  }
-  completarComSementes();
+  return { chaves: chaves };
 }
 
-function restaurarBackup() {
+function aplicarRetrato(retrato) {
+  chavesComPrefixo('treino.').forEach(chave => localStorage.removeItem(chave));
+  Object.keys(retrato.chaves).forEach(chave => {
+    try { localStorage.setItem(chave, retrato.chaves[chave]); } catch (erro) { /* sem espaço */ }
+  });
+  recarregarDoArmazenamento();
+}
+
+/* Relê perfil, banco e sessão do zero, a partir do que está gravado. */
+function recarregarDoArmazenamento() {
+  const salvos = comoJson(localStorage.getItem(CHAVE_PERFIS));
+  if (salvos && Array.isArray(salvos.lista) && salvos.lista.length) perfis = salvos;
+  if (!acharPerfil(perfilId)) perfilId = perfis.lista[0].id;
+
+  dadosTrancados = false;
+  avisoDeDados = null;
+  Object.keys(cacheDeFotos).forEach(k => delete cacheDeFotos[k]);
+
+  banco = lerBanco();
+  completarComSementes();
+
+  const salva = lerSessaoSalva();
+  sessao = salva || criarSessao(proximoTreinoId());
+  perguntarSobrePendente = salva ? sessaoPrecisaDeDecisao(salva) : false;
+
+  aplicarTema();
+}
+
+/* Grava o pacote de UMA pessoa. Se o perfil ainda não existe na
+   lista, ele é criado; os outros perfis não são tocados. */
+function gravarPerfilDoBackup(id, pacote) {
+  if (!bancoValido(pacote.banco)) throw new Error('banco invalido para ' + id);
+
+  if (!acharPerfil(id)) {
+    perfis.lista.push({
+      id: id,
+      nome: pacote.nome || id,
+      tema: pacote.tema || 'laranja',
+      sementes: pacote.sementes || id
+    });
+    salvarPerfis();
+  }
+
+  localStorage.setItem(chaveBanco(id), JSON.stringify(pacote.banco));
+
+  if (pacote.sessaoAtual) {
+    localStorage.setItem(chaveSessao(id), JSON.stringify(pacote.sessaoAtual));
+  } else {
+    localStorage.removeItem(chaveSessao(id));
+  }
+
+  const prefixo = prefixoFoto(id);
+  chavesComPrefixo(prefixo).forEach(chave => localStorage.removeItem(chave));
+  const fotos = pacote.fotos || {};
+  Object.keys(fotos).forEach(nome => {
+    try { localStorage.setItem(prefixo + nome, fotos[nome]); } catch (erro) { /* sem espaço */ }
+  });
+}
+
+/* destinoId só é usado para backup do formato antigo, que não diz
+   de quem é: aí quem escolhe é você, na faixa de confirmação. */
+function restaurarBackup(destinoId) {
   const backup = backupParaRestaurar;
   backupParaRestaurar = null;
   if (!backup) return;
 
-  estadoAntesDaRestauracao = retratoDeAgora();
-  aplicarEstado(backup, false);
+  const antes = retratoDeAgora();
 
+  try {
+    if (backup.formato === 'perfis') {
+      backup.ids.forEach(id => gravarPerfilDoBackup(id, backup.dados.dados[id]));
+    } else {
+      if (!acharPerfil(destinoId)) throw new Error('perfil de destino inexistente');
+      gravarPerfilDoBackup(destinoId, {
+        banco: backup.dados.banco,
+        sessaoAtual: backup.dados.sessaoAtual,
+        fotos: backup.dados.fotos
+      });
+    }
+    recarregarDoArmazenamento();
+  } catch (erro) {
+    /* qualquer tropeço no meio: volta tudo como estava */
+    aplicarRetrato(antes);
+    confirmando = null;
+    desenhar();
+    mostrarFaixa('Não deu para restaurar. Nada foi trocado.', false);
+    return;
+  }
+
+  estadoAntesDaRestauracao = antes;
   ultimaAcao = { tipo: 'restaurar' };
+  confirmando = null;
   pararDescanso();
   desenhar();
   mostrarFaixa('Backup restaurado', true);
@@ -1134,8 +1931,27 @@ function desfazer() {
   /* desfazer uma restauração: volta o retrato guardado na memória */
   if (ultimaAcao.tipo === 'restaurar') {
     if (estadoAntesDaRestauracao) {
-      aplicarEstado(estadoAntesDaRestauracao, true);
+      aplicarRetrato(estadoAntesDaRestauracao);
       estadoAntesDaRestauracao = null;
+    }
+    esconderFaixa();
+    desenhar();
+    return;
+  }
+
+  /* caminhadas */
+  if (ultimaAcao.tipo === 'caminhada') {
+    banco.caminhadas.pop();
+    salvarBanco();
+    esconderFaixa();
+    desenhar();
+    return;
+  }
+  if (ultimaAcao.tipo === 'apagar-caminhada') {
+    if (caminhadaApagada) {
+      banco.caminhadas.splice(caminhadaApagada.posicao, 0, caminhadaApagada.caminhada);
+      caminhadaApagada = null;
+      salvarBanco();
     }
     esconderFaixa();
     desenhar();
@@ -1147,6 +1963,11 @@ function desfazer() {
     item.series.pop();          // pop [nativo]: tira o último da lista
     pararDescanso();
   } else if (ultimaAcao.tipo === 'concluir') {
+    item.concluido = false;
+    sessao.itemAberto = ultimaAcao.i;
+  } else if (ultimaAcao.tipo === 'pular') {
+    item.pulado = false;
+    item.motivoDoPulo = '';
     item.concluido = false;
     sessao.itemAberto = ultimaAcao.i;
   }
@@ -1214,14 +2035,14 @@ const cacheDeFotos = {};   // evita reler o mesmo texto grande a cada desenho
 function lerFoto(equipamentoId) {
   if (!equipamentoId) return null;
   if (equipamentoId in cacheDeFotos) return cacheDeFotos[equipamentoId];
-  const foto = localStorage.getItem(CHAVE_FOTO + equipamentoId);
+  const foto = localStorage.getItem(prefixoFoto(perfilId) + equipamentoId);
   cacheDeFotos[equipamentoId] = foto;
   return foto;
 }
 
 function salvarFoto(equipamentoId, imagem) {
   try {
-    localStorage.setItem(CHAVE_FOTO + equipamentoId, imagem);
+    localStorage.setItem(prefixoFoto(perfilId) + equipamentoId, imagem);
     cacheDeFotos[equipamentoId] = imagem;
     return true;
   } catch (erro) {
@@ -1232,7 +2053,7 @@ function salvarFoto(equipamentoId, imagem) {
 }
 
 function apagarFoto(equipamentoId) {
-  localStorage.removeItem(CHAVE_FOTO + equipamentoId);
+  localStorage.removeItem(prefixoFoto(perfilId) + equipamentoId);
   cacheDeFotos[equipamentoId] = null;
 }
 
@@ -1256,9 +2077,21 @@ function imagemDoExercicio(exercicio) {
 function desenhar() {
   const treino = acharTreino(sessao.treinoId);
 
-  /* --- cabeçalho laranja --- */
+  /* --- cabeçalho colorido --- */
   const feitos = sessao.itens.filter(it => it.concluido).length;
+
+  /* a fileira de pessoas: um toque troca de treino, de histórico e de
+     cor. Cada perfil guarda o seu, nada se mistura. */
+  const chips = perfis.lista.map(p =>
+    '<button class="chip-perfil' + (p.id === perfilId ? ' ativo' : '') +
+    '" data-acao="trocar-perfil" data-id="' + esc(p.id) + '">' + esc(p.nome) + '</button>'
+  ).join('');
+
   document.getElementById('cabecalho').innerHTML =
+    '<div class="fileira-perfis">' + chips +
+      '<button class="chip-perfil ajustes" data-acao="abrir-perfis" ' +
+        'aria-label="Ajustes dos perfis">•••</button>' +
+    '</div>' +
     '<div class="titulo-treino">' +
       '<h1>' + esc(treino.nome.toUpperCase()) + '</h1>' +
       '<div class="hoje">HOJE</div>' +
@@ -1273,7 +2106,8 @@ function desenhar() {
 
   /* --- sessão pendente toma a tela --- */
   if (perguntarSobrePendente) {
-    document.getElementById('conteudo').innerHTML = desenharConfirmacao() + desenharAviso();
+    document.getElementById('conteudo').innerHTML =
+      desenharRecadosDoTopo() + desenharConfirmacao() + desenharAviso();
     document.getElementById('rodape').innerHTML = '';
     desenharPainel();
     return;
@@ -1281,20 +2115,32 @@ function desenhar() {
 
   /* --- lista de exercícios --- */
   document.getElementById('conteudo').innerHTML =
+    desenharRecadosDoTopo() +
     desenharConfirmacao() +
     treino.itens.map((itemDoTreino, i) => desenharCartao(itemDoTreino, i)).join('');
 
   /* --- rodapé --- */
+  const extras = temAcompanhamento()
+    ? '<div class="linha-backup">' +
+        '<button class="btn-pequeno" data-acao="ver-caminhadas">Caminhadas</button>' +
+        '<button class="btn-pequeno" data-acao="ver-resumo">Resumo</button>' +
+        '<button class="btn-pequeno" data-acao="ver-plano">Sobre o plano</button>' +
+      '</div>'
+    : '';
+
   document.getElementById('rodape').innerHTML =
     (sessaoTemRegistro(sessao)
-      ? '<button class="btn-largo btn-laranja" data-acao="concluir-treino">Concluir treino</button>'
+      ? '<button class="btn-largo btn-destaque" data-acao="concluir-treino">Concluir treino</button>'
       : '') +
     '<div class="linha-backup">' +
       '<button class="btn-pequeno" data-acao="ver-treinos">Treinos registrados</button>' +
     '</div>' +
+    extras +
     '<div class="linha-backup">' +
-      '<button class="btn-pequeno" data-acao="backup">Salvar backup</button>' +
-      '<button class="btn-pequeno" data-acao="restaurar">Restaurar backup</button>' +
+      '<button class="btn-pequeno" data-acao="backup">Backup de ' +
+        esc(perfilAtual().nome) + '</button>' +
+      '<button class="btn-pequeno" data-acao="backup-tudo">Backup de todos</button>' +
+      '<button class="btn-pequeno" data-acao="restaurar">Restaurar</button>' +
     '</div>';
 
   desenharPainel();
@@ -1306,6 +2152,47 @@ function desenhar() {
   }
 }
 
+/* Recados fixos do topo da tela: problema com os dados salvos, fase
+   informada e o convite para revisar a ficha. Nenhum deles tira você
+   do treino: são faixas, não pop up. */
+function desenharRecadosDoTopo() {
+  let html = '';
+
+  if (avisoDeDados) {
+    html += '<div class="atencao atencao-forte">' + esc(avisoDeDados) +
+      '<div class="botoes-atencao">' +
+        '<button class="btn-pequeno" data-acao="backup">Salvar backup agora</button>' +
+      '</div></div>';
+  }
+
+  if (banco.config.fase === 'gestacao') {
+    html += '<div class="atencao">Fase informada: gestação. As sugestões automáticas de ' +
+      'aumento de carga estão suspensas. Revise o treino com o acompanhamento pré-natal. ' +
+      'Nada foi apagado e o registro continua funcionando.</div>';
+  }
+
+  if (temAcompanhamento() && precisaOferecerResumo()) {
+    html += '<div class="atencao">Já são ' + diasDeUso() + ' dias de uso registrado. ' +
+      'Vale abrir o resumo e conversar com o professor sobre revisar a ficha. ' +
+      'O app não muda séries sozinho.' +
+      '<div class="botoes-atencao">' +
+        '<button class="btn-pequeno" data-acao="ver-resumo">Ver resumo</button>' +
+      '</div></div>';
+  }
+
+  return html;
+}
+
+/* Passaram duas semanas de uso de verdade desde a última olhada? */
+function precisaOferecerResumo() {
+  if (diasDeUso() < DIAS_PARA_RESUMO) return false;
+  const visto = banco.config.resumoVistoEm;
+  if (!visto) return true;
+  const p = visto.split('-');
+  const dia = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  return Math.floor((new Date() - dia) / 86400000) >= DIAS_PARA_RESUMO;
+}
+
 /* Painel do histórico: sobe por cima da tela, sem tirar você do treino.
    Ele fica ABAIXO da barra do cronômetro de propósito, para você poder
    olhar o histórico enquanto o descanso corre. */
@@ -1314,31 +2201,53 @@ function desenharPainel() {
 
   if (edicao)      { caixa.classList.remove('oculto'); caixa.innerHTML = desenharEdicao(); return; }
   if (listaAberta) { caixa.classList.remove('oculto'); caixa.innerHTML = desenharListaDeTreinos(); return; }
+
+  if (painelAberto === 'perfis')     { caixa.classList.remove('oculto'); caixa.innerHTML = desenharPerfis(); return; }
+  if (painelAberto === 'caminhadas') { caixa.classList.remove('oculto'); caixa.innerHTML = desenharCaminhadas(); return; }
+  if (painelAberto === 'resumo')     { caixa.classList.remove('oculto'); caixa.innerHTML = desenharResumo(); return; }
+  if (painelAberto === 'plano')      { caixa.classList.remove('oculto'); caixa.innerHTML = desenharPlano(); return; }
+
   if (!historicoAberto) { caixa.classList.add('oculto'); return; }
 
   const exercicio = acharExercicio(historicoAberto);
   const feitos = execucoesDe(historicoAberto);
 
-  /* resumo de uma linha */
-  const cargas = feitos.map(f => cargaDoItem(f.item)).filter(c => c !== null);
+  /* resumo de uma linha. A maior carga só compara registros da mesma
+     unidade: placa e quilo não entram na mesma conta. */
+  const unidadeAtual = feitos.length
+    ? unidadeDoItemRegistrado(feitos[0].item)
+    : (exercicio.unidade || 'kg');
+  const cargas = feitos
+    .filter(f => unidadeDoItemRegistrado(f.item) === unidadeAtual)
+    .map(f => cargaDoItem(f.item)).filter(c => c !== null);
   const maior = cargas.length ? Math.max.apply(null, cargas) : null;   // Math.max [nativo]
   const resumo = feitos.length + (feitos.length === 1 ? ' sessão' : ' sessões') +
-    (maior !== null ? ' · maior carga ' + numero(maior) + ' kg' : '');
+    (maior !== null ? ' · maior carga ' + cargaEscrita(maior, unidadeAtual) : '');
 
   const linhas = feitos.map(f => {
     const carga = cargaDoItem(f.item);
     const rir = rirDoItem(f.item);
     const d = f.item.desconforto || {};
     const regioes = (d.regioes || []).join(', ');
+    const retrato = f.item.retrato;
+    /* o nome e a unidade são os DAQUELE dia, não os de hoje */
+    const nomeDoDia = nomeNoHistorico(f.item);
+    const mudouDeNome = nomeDoDia !== exercicio.nome;
+    const porLado = retrato && retrato.porLado;
     return '<div class="sessao">' +
       '<div class="dia">' + dataCurta(f.data) + '</div>' +
       '<div class="detalhe">' +
         '<div class="linha-carga">' +
-          (carga !== null ? '<b>' + numero(carga) + ' kg</b> · ' : '') +
+          (carga !== null ? '<b>' + esc(cargaEscrita(carga, unidadeDoItemRegistrado(f.item))) + '</b> · ' : '') +
           f.item.series.map(x => x.reps).join(' · ') + ' reps' +
+          (porLado ? ' por lado' : '') +
           (rir !== null ? ' <span class="marca">RIR ' + rir + '</span>' : '') +
           (f.estado === 'incompleta' ? ' <span class="marca">treino incompleto</span>' : '') +
+          (!retrato ? ' <span class="marca">registro antigo</span>' : '') +
+          (mudouDeNome ? ' <span class="marca">' + esc(nomeDoDia) + '</span>' : '') +
         '</div>' +
+        (retrato ? '<div class="extra-cinza">pedido no dia: ' + retrato.series + ' x ' +
+          retrato.repMin + '-' + retrato.repMax + '</div>' : '') +
         (d.nivel && d.nivel !== 'sem'
           ? '<div class="extra">desconforto ' + esc(d.nivel) + (regioes ? ' · ' + esc(regioes) : '') + '</div>'
           : '') +
@@ -1352,13 +2261,276 @@ function desenharPainel() {
   caixa.innerHTML =
     '<div class="topo-painel">' +
       '<div><h2>' + esc(exercicio.nome) + '</h2>' +
-      '<div class="resumo-painel">' + resumo + '</div></div>' +
-      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+      '<div class="resumo-painel">' + esc(resumo) + '</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
     (aviso ? '<div class="atencao atencao-painel">' + esc(textoDoAviso(aviso)) + '</div>' : '') +
-    blocoDoGrafico(feitos) +
+    blocoDoGrafico(feitos, exercicio) +
     '<div class="lista-painel">' +
       (feitos.length ? linhas : '<div class="vazio">Nenhuma sessão registrada ainda.</div>') +
+    '</div>';
+}
+
+
+/* ---------- painel dos perfis ----------
+   Trocar de pessoa e mudar o nome que aparece no botão. Tudo local:
+   não existe conta, senha nem nuvem. */
+function desenharPerfis() {
+  const linhas = perfis.lista.map(p => {
+    const ativo = p.id === perfilId;
+    /* de quem está aberto, o número certo é o da memória; dos outros,
+       o que está gravado */
+    const outro = ativo ? null : comoJson(localStorage.getItem(chaveBanco(p.id)));
+    const guardado = ativo ? banco : outro;
+    const quantas = guardado && Array.isArray(guardado.sessoes) ? guardado.sessoes.length : 0;
+    return '<div class="item-perfil' + (ativo ? ' ativo' : '') + '">' +
+      '<div class="dados-perfil">' +
+        '<input type="text" data-campo="nome-perfil" data-id="' + esc(p.id) + '" ' +
+          'value="' + esc(p.nome) + '" maxlength="20" aria-label="Nome do perfil">' +
+        '<div class="extra-cinza">' + quantas +
+          (quantas === 1 ? ' treino guardado' : ' treinos guardados') +
+          ' · cor ' + esc(p.tema) + '</div>' +
+      '</div>' +
+      (ativo
+        ? '<span class="marca">em uso</span>'
+        : '<button class="btn-pequeno btn-destaque" data-acao="trocar-perfil" data-id="' +
+            esc(p.id) + '">Usar</button>') +
+    '</div>';
+  }).join('');
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Quem está treinando</h2>' +
+      '<div class="resumo-painel">cada pessoa tem ficha, histórico e cargas próprias</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' + linhas +
+      '<div class="nota-painel">Tudo fica guardado só neste aparelho, sem conta e sem ' +
+      'internet. Trocar de pessoa não mistura nada: o treino em andamento de cada uma ' +
+      'fica esperando onde parou. Para levar os dados para outro celular, use o backup.</div>' +
+    '</div>';
+}
+
+
+/* ---------- painel das caminhadas ---------- */
+function desenharCaminhadas() {
+  const meta = banco.config.metaSemanalMin || 0;
+  const feitos = minutosDaSemana();
+  const quantas = caminhadasDaSemana().length;
+  const parte = meta ? Math.min(100, Math.round((feitos / meta) * 100)) : 0;
+
+  const lista = (banco.caminhadas || []).slice().reverse().slice(0, 30).map(c =>
+    '<div class="sessao">' +
+      '<div class="dia">' + dataCurta(c.data) + '</div>' +
+      '<div class="detalhe">' +
+        '<div class="linha-carga"><b>' + c.minutos + ' min</b></div>' +
+        (c.observacao ? '<div class="obs">' + esc(c.observacao) + '</div>' : '') +
+      '</div>' +
+      '<button class="btn-pequeno btn-perigo" data-acao="apagar-caminhada" data-id="' +
+        esc(c.id) + '">Apagar</button>' +
+    '</div>'
+  ).join('');
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Caminhadas</h2>' +
+      '<div class="resumo-painel">esta semana: ' + feitos + ' min em ' + quantas +
+        (quantas === 1 ? ' caminhada' : ' caminhadas') + '</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' +
+      '<div class="barra-meta"><div class="cheio" style="width:' + parte + '%"></div></div>' +
+      linhaDeAjuste('Meta da semana', meta + ' min', 'meta', 0) +
+      '<div class="nota-painel">Começo sugerido: duas caminhadas de 15 a 25 minutos por ' +
+        'semana, num ritmo que ainda deixa conversar. A meta é sua e dá para mudar aqui. ' +
+        'Com o tempo, a recomendação geral de saúde é chegar perto de 150 minutos por ' +
+        'semana de atividade aeróbica moderada, sem pressa e sem obrigação de bater a ' +
+        'meta toda semana. Os minutos de musculação não entram nesta conta.</div>' +
+      '<div class="novo-exercicio">' +
+        '<div class="rotulo">Registrar caminhada de hoje</div>' +
+        '<input type="text" inputmode="numeric" data-campo="minutos" placeholder="Minutos" ' +
+          'value="' + esc(minutosDigitados) + '">' +
+        '<input type="text" data-campo="obs-caminhada" placeholder="Como foi (opcional)" ' +
+          'value="' + esc(obsDaCaminhada) + '">' +
+        '<button class="btn-largo btn-marrom" data-acao="salvar-caminhada">Registrar</button>' +
+      '</div>' +
+      (lista || '<div class="vazio">Nenhuma caminhada registrada ainda.</div>') +
+    '</div>';
+}
+
+
+/* ---------- painel do resumo para revisão ----------
+   Só conta o que foi registrado. Não soma tonelagem entre exercícios
+   diferentes, porque comparar peso de máquina com peso do corpo, ou
+   quilo com placa, não quer dizer nada. */
+function desenharResumo() {
+  const inicio = primeiroDiaDeUso();
+  if (!inicio) {
+    return '<div class="topo-painel"><div><h2>Resumo</h2></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button></div>' +
+      '<div class="lista-painel"><div class="vazio">O resumo aparece depois do ' +
+      'primeiro treino ou da primeira caminhada registrada.</div></div>';
+  }
+
+  const dias = diasDeUso();
+  const semanas = Math.max(1, dias / 7);
+  const sessoes = banco.sessoes;
+  const concluidas = sessoes.filter(s => s.estado === 'concluida').length;
+
+  const duracoes = sessoes.map(s => {
+    if (!s.iniciadaEm || !s.encerradaEm) return null;
+    return Math.round((new Date(s.encerradaEm) - new Date(s.iniciadaEm)) / 60000);
+  }).filter(m => m !== null && m > 0 && m < 300);
+  const duracaoMedia = duracoes.length
+    ? Math.round(duracoes.reduce((a, b) => a + b, 0) / duracoes.length)
+    : null;
+
+  let registrados = 0, pulados = 0, semRegistro = 0, series = 0, comRir = 0, comDesconforto = 0;
+  sessoes.forEach(s => s.itens.forEach(it => {
+    const situacao = situacaoDoItem(it);
+    if (situacao === 'pulado') pulados++;
+    else if (situacao === 'registrado') registrados++;
+    else if (situacao === 'sem-registro') semRegistro++;
+    series += it.series.length;
+    comRir += it.series.filter(x => typeof x.rir === 'number').length;
+    if (it.desconforto && it.desconforto.nivel && it.desconforto.nivel !== 'sem') comDesconforto++;
+  }));
+
+  /* por exercício: só o que dá para comparar com ele mesmo */
+  const porExercicio = banco.exercicios.map(e => {
+    const feitos = execucoesDe(e.id);
+    if (!feitos.length) return null;
+    const unidade = unidadeDoItemRegistrado(feitos[0].item);
+    const cargas = feitos.filter(f => unidadeDoItemRegistrado(f.item) === unidade)
+      .map(f => cargaDoItem(f.item)).filter(c => c !== null);
+    const primeira = cargas.length ? cargas[cargas.length - 1] : null;
+    const ultima = cargas.length ? cargas[0] : null;
+    return '<div class="sessao">' +
+      '<div class="detalhe">' +
+        '<div class="linha-carga"><b>' + esc(e.nome) + '</b></div>' +
+        '<div class="extra-cinza">' + feitos.length +
+          (feitos.length === 1 ? ' sessão' : ' sessões') +
+          (ultima !== null
+            ? ' · carga ' + esc(cargaEscrita(primeira, unidade)) +
+              (ultima !== primeira ? ' para ' + esc(cargaEscrita(ultima, unidade)) : '')
+            : ' · sem carga') +
+        '</div>' +
+      '</div></div>';
+  }).filter(Boolean).join('');
+
+  const minutosCaminhada = (banco.caminhadas || []).reduce((a, c) => a + c.minutos, 0);
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Resumo para revisão</h2>' +
+      '<div class="resumo-painel">desde ' + dataCurta(inicio) + ', ' + dias +
+        (dias === 1 ? ' dia' : ' dias') + ' de uso</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' +
+      '<div class="quadro-resumo">' +
+        '<div><b>' + sessoes.length + '</b><span>treinos registrados</span></div>' +
+        '<div><b>' + (Math.round((sessoes.length / semanas) * 10) / 10).toString().replace('.', ',') +
+          '</b><span>por semana</span></div>' +
+        '<div><b>' + concluidas + '</b><span>concluídos</span></div>' +
+        '<div><b>' + (duracaoMedia !== null ? duracaoMedia + ' min' : '—') +
+          '</b><span>duração média</span></div>' +
+        '<div><b>' + series + '</b><span>séries registradas</span></div>' +
+        '<div><b>' + comRir + '</b><span>séries com RIR</span></div>' +
+      '</div>' +
+      '<div class="nota-painel">Exercícios realizados e registrados: ' + registrados + '. ' +
+        'Realizados sem registrar séries: ' + semRegistro + '. ' +
+        'Marcados como não realizados: ' + pulados + '. ' +
+        'Exercícios com desconforto anotado: ' + comDesconforto + '.</div>' +
+      '<div class="rotulo">Caminhadas, contadas à parte</div>' +
+      '<div class="nota-painel">' + (banco.caminhadas || []).length +
+        (banco.caminhadas.length === 1 ? ' caminhada' : ' caminhadas') + ', somando ' +
+        minutosCaminhada + ' minutos. Esta semana: ' + minutosDaSemana() + ' de ' +
+        (banco.config.metaSemanalMin || 0) + ' minutos da meta. ' +
+        'Minuto de musculação não é contado como minuto de caminhada.</div>' +
+      '<div class="rotulo">Exercício por exercício</div>' +
+      (porExercicio || '<div class="vazio">Nada registrado ainda.</div>') +
+      '<div class="nota-painel">Para revisar a ficha: dá para passar UM exercício ' +
+        'prioritário de 2 para 3 séries por vez, na tela de editar treino, conversando ' +
+        'antes com o professor. O app nunca aumenta série sozinho, e aumentar tudo de ' +
+        'uma vez não é uma boa ideia. A duração do treino, sozinha, não é motivo para ' +
+        'mudar nada.</div>' +
+    '</div>';
+}
+
+
+/* ---------- painel "sobre o plano" ----------
+   Fica fora do caminho de registrar série de propósito: quem quer ler,
+   abre; quem está treinando, não tropeça nisso. */
+function desenharPlano() {
+  const fase = banco.config.fase;
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Sobre o plano</h2>' +
+      '<div class="resumo-painel">como usar, e o que o app não faz</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' +
+
+      '<div class="rotulo">Antes de começar</div>' +
+      '<div class="nota-painel">Faça cerca de 5 minutos de caminhada ou bicicleta e ' +
+        'séries leves de preparação nos primeiros exercícios mais exigentes. Termine as ' +
+        'séries com aproximadamente 2 a 3 repetições possíveis a mais, sem descansar e ' +
+        'mantendo a execução. Nos movimentos que você ainda está aprendendo, deixar uma ' +
+        'margem maior é melhor. A sessão costuma levar de 50 a 60 minutos, sem obrigação ' +
+        'de completar a hora nem de encurtar os descansos.</div>' +
+
+      '<div class="rotulo">O que é RIR</div>' +
+      '<div class="nota-painel">É a resposta a esta pergunta: quantas repetições a mais ' +
+        'você conseguiria fazer agora, sem descansar? São repetições dentro da mesma ' +
+        'série, não séries extras depois do descanso. Não precisa informar sempre; ' +
+        'deixar em branco não é o mesmo que zero, e sem RIR o app não sugere aumento.</div>' +
+
+      '<div class="rotulo">Carga</div>' +
+      '<div class="nota-painel">O app começa sem nenhuma carga preenchida e nunca chuta ' +
+        'um peso. Onde está escrito "kg por halter", o número é o peso de UM halter. ' +
+        'Se o aparelho for de placa numerada, escolha a unidade placa: número de placa ' +
+        'não vira quilo sozinho. O passo de aumento é informado aparelho por aparelho, ' +
+        'no próprio cartão do exercício.</div>' +
+
+      '<div class="rotulo">Séries</div>' +
+      '<div class="nota-painel">A ficha começa com 2 séries de trabalho por exercício, ' +
+        '16 por sessão. Depois de cerca de duas semanas de uso de verdade, o app oferece ' +
+        'um resumo para revisão. Quem decide aumentar é você com o professor, um ' +
+        'exercício por vez.</div>' +
+
+      '<div class="rotulo">Dead bug</div>' +
+      '<div class="nota-painel">São 2 séries de 6 a 10 repetições POR LADO. Registre a ' +
+        'série uma vez só, depois de fazer os dois lados: 8 quer dizer 8 à direita e 8 ' +
+        'à esquerda. Não registre quatro séries.</div>' +
+
+      '<div class="rotulo">O que o app não faz</div>' +
+      '<div class="nota-painel">Ele não é avaliação de saúde e não substitui a orientação ' +
+        'presencial do professor. Treinar fortalece os músculos; a perda de gordura, ' +
+        'quando acontece, é geral e não em um ponto escolhido do corpo. O app não promete ' +
+        'resultado localizado, não indica dieta e não diagnostica dor.</div>' +
+
+      '<div class="rotulo">Fase</div>' +
+      '<div class="nota-painel">Esta ficha foi organizada para a fase anterior à gestação. ' +
+        'Ao confirmar gravidez, revise o treino com o acompanhamento pré-natal. A ' +
+        'marcação abaixo é opcional: ela só suspende as sugestões automáticas de aumento ' +
+        'e mostra um lembrete. Nada é apagado e o registro continua funcionando.</div>' +
+      '<div class="fileira fileira-fase">' +
+        '<button data-acao="fase" data-valor="pre-gestacao"' +
+          (fase !== 'gestacao' ? ' class="escolhido"' : '') + '>Antes da gestação</button>' +
+        '<button data-acao="fase" data-valor="gestacao"' +
+          (fase === 'gestacao' ? ' class="escolhido"' : '') + '>Gestante</button>' +
+      '</div>' +
+
+      '<div class="rotulo">De onde vêm as recomendações gerais</div>' +
+      '<div class="nota-painel">A ficha é uma aplicação prática ao seu caso, não um ' +
+        'protocolo testado num estudo. As referências gerais:' +
+        '<ul class="links">' +
+          '<li>ACSM, atualização de treinamento resistido de 2026: ' +
+            'acsm.org/resistance-training-guidelines-update-2026/</li>' +
+          '<li>OMS, atividade física e comportamento sedentário: ' +
+            'who.int/europe/publications/i/item/9789240014886</li>' +
+          '<li>ACOG, exercício durante a gravidez: ' +
+            'acog.org/womens-health/faqs/exercise-during-pregnancy</li>' +
+          '<li>Estudo sobre hipertrofia dos glúteos: pubmed.ncbi.nlm.nih.gov/37877099/</li>' +
+        '</ul></div>' +
     '</div>';
 }
 
@@ -1370,7 +2542,7 @@ function desenharEdicao() {
   if (edicao.escolhendo) return desenharEscolhaDeExercicio();
 
   const abas = banco.treinos.slice().sort((a, b) => a.ordem - b.ordem).map(t =>
-    '<button class="btn-pequeno' + (t.id === edicao.treinoId ? ' btn-laranja' : '') +
+    '<button class="btn-pequeno' + (t.id === edicao.treinoId ? ' btn-destaque' : '') +
     '" data-acao="editar-treino" data-id="' + t.id + '">' + esc(t.nome) + '</button>'
   ).join('');
 
@@ -1398,7 +2570,7 @@ function desenharEdicao() {
   return '<div class="topo-painel">' +
       '<div><h2>Editar treino</h2>' +
       '<div class="resumo-painel">muda a lista do dia, nao mexe no historico</div></div>' +
-      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
     '<div class="abas">' + abas + '</div>' +
     '<div class="lista-painel">' + linhas +
@@ -1435,7 +2607,7 @@ function desenharEscolhaDeExercicio() {
 
   return '<div class="topo-painel">' +
       '<div><h2>' + titulo + '</h2></div>' +
-      '<button class="btn-laranja" data-acao="voltar-edicao">Voltar</button>' +
+      '<button class="btn-destaque" data-acao="voltar-edicao">Voltar</button>' +
     '</div>' +
     '<div class="lista-painel">' + aviso +
       '<div class="novo-exercicio">' +
@@ -1482,7 +2654,7 @@ function desenharListaDeTreinos() {
       '<div><h2>Treinos registrados</h2>' +
       '<div class="resumo-painel">' + registrados.length +
         (registrados.length === 1 ? ' treino guardado' : ' treinos guardados') + '</div></div>' +
-      '<button class="btn-laranja" data-acao="fechar-historico">Fechar</button>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
     '</div>' +
     desenharConfirmacao() +
     '<div class="lista-painel">' +
@@ -1491,14 +2663,22 @@ function desenharListaDeTreinos() {
     '</div>';
 }
 
-/* Faixa marrom de sim ou não, no lugar da caixinha do navegador. */
+/* Faixa marrom de sim ou não, no lugar da caixinha do navegador.
+   Quando a pergunta tem mais de uma saída (para qual pessoa vai este
+   backup?), ela vira uma lista de opções em vez de um botão só. */
 function desenharConfirmacao() {
   if (!confirmando) return '';
+
+  const botoes = confirmando.opcoes
+    ? confirmando.opcoes.map(o =>
+        '<button data-acao="' + esc(o.acao) + '" data-id="' + esc(o.id) + '" class="btn-destaque">' +
+        esc(o.texto) + '</button>').join('')
+    : '<button data-acao="confirmar" class="' + (confirmando.perigo ? 'btn-perigo' : 'btn-destaque') + '">' +
+      esc(confirmando.botao) + '</button>';
+
   return '<div class="confirmacao">' +
     '<p>' + esc(confirmando.texto) + '</p>' +
-    '<div class="botoes">' +
-      '<button data-acao="confirmar" class="' + (confirmando.perigo ? 'btn-perigo' : 'btn-laranja') + '">' +
-        esc(confirmando.botao) + '</button>' +
+    '<div class="botoes">' + botoes +
       '<button data-acao="cancelar" class="cancelar">Cancelar</button>' +
     '</div></div>';
 }
@@ -1510,7 +2690,7 @@ function desenharAviso() {
     '<p>' + esc(treino.nome) + ' de ' + dataCurta(sessao.data) + ', com ' +
       seriesDaSessao(sessao) + ' séries registradas.</p>' +
     '<div class="botoes">' +
-      '<button class="btn-largo btn-laranja" data-acao="sessao-continuar">Continuar</button>' +
+      '<button class="btn-largo btn-destaque" data-acao="sessao-continuar">Continuar</button>' +
       '<button class="btn-largo" data-acao="sessao-incompleta">Encerrar como incompleta</button>' +
       '<button class="btn-largo btn-perigo" data-acao="sessao-descartar">Descartar</button>' +
     '</div></div>';
@@ -1522,13 +2702,16 @@ function desenharCartao(itemDoTreino, i) {
   const aberto = sessao.itemAberto === i;
   const imagem = imagemDoExercicio(exercicio);
 
-  const prescricao = itemDoTreino.series + ' x ' + itemDoTreino.repMin + '-' + itemDoTreino.repMax;
+  const prescricao = itemDoTreino.series + ' x ' + itemDoTreino.repMin + '-' + itemDoTreino.repMax +
+    (exercicio.porLado ? ' por lado' : '');
 
   /* resumo que aparece com o cartão fechado */
   let resumo = '—';
-  if (item.series.length) {
+  if (item.pulado) {
+    resumo = 'não fez';
+  } else if (item.series.length) {
     const carga = cargaDoItem(item);
-    resumo = (carga !== null ? numero(carga) + ' kg · ' : '') +
+    resumo = (carga !== null ? cargaEscrita(carga, exercicio.unidade) + ' · ' : '') +
              item.series.map(s => s.reps).join('/');
   }
 
@@ -1565,6 +2748,22 @@ function desenharCartao(itemDoTreino, i) {
     html += '<div class="instrucoes">' + esc(exercicio.instrucoes) + '</div>';
   }
 
+  /* qual aparelho é este, de verdade. Cada variante tem histórico
+     próprio: escolher não reescreve o que já foi feito na outra. */
+  if (Array.isArray(exercicio.variantes) && exercicio.variantes.length) {
+    const botoes = exercicio.variantes.map(id => {
+      const v = acharExercicio(id);
+      if (!v) return '';
+      return '<button data-acao="variante" data-i="' + i + '" data-id="' + esc(id) + '"' +
+        (id === exercicio.id ? ' class="escolhido"' : '') + '>' + esc(v.nome) + '</button>';
+    }).join('');
+    html += '<div class="bloco"><div class="rotulo">' + esc(exercicio.rotuloVariante || 'Variante') +
+      '</div><div class="fileira fileira-variante">' + botoes + '</div>' +
+      '<div class="extra-cinza">A escolha vale para os três treinos. Cada aparelho tem o ' +
+        'seu histórico: escolher agora não mexe no que já foi registrado no outro.</div>' +
+      '</div>';
+  }
+
   /* última vez */
   const anteriores = execucoesDe(item.exercicioId);
   if (anteriores.length) {
@@ -1573,8 +2772,9 @@ function desenharCartao(itemDoTreino, i) {
     const rir = rirDoItem(a.item);
     html += '<div class="ultima-vez tocavel" data-acao="ver-historico" data-id="' + item.exercicioId + '">' +
       '<div>Última vez (' + dataCurta(a.data) + '): <b>' +
-      (carga !== null ? numero(carga) + ' kg · ' : '') +
+      (carga !== null ? esc(cargaEscrita(carga, unidadeDoItemRegistrado(a.item))) + ' · ' : '') +
       a.item.series.map(s => s.reps).join('/') + '</b>' +
+      (exercicio.porLado ? ' por lado' : '') +
       (rir !== null ? ' · RIR ' + rir : '') + '</div>' +
       '<div class="ver-tudo">ver tudo</div></div>';
   } else {
@@ -1583,17 +2783,42 @@ function desenharCartao(itemDoTreino, i) {
 
   /* sugestão de progressão */
   const sugerida = sugestaoDeCarga(itemDoTreino);
-  if (sugerida) {
+  if (sugerida && sugerida.carga !== null) {
     const recado = sugerida.motivo === 'leve'
-      ? 'Carga parece leve para a faixa. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.'
+      ? 'Carga parece leve para a faixa. Dá para testar <b>' +
+        esc(cargaEscrita(sugerida.carga, exercicio.unidade)) + '</b>.'
       : sugerida.motivo === 'voltar'
-      ? 'Esse salto ainda não pegou. Dá para voltar para <b>' + numero(sugerida.carga) + ' kg</b> e subir de novo mais pra frente.'
-      : 'Duas sessões no topo. Dá para testar <b>' + numero(sugerida.carga) + ' kg</b>.';
+      ? 'Esse salto ainda não pegou. Dá para voltar para <b>' +
+        esc(cargaEscrita(sugerida.carga, exercicio.unidade)) +
+        '</b> e subir de novo mais pra frente.'
+      : sugerida.motivo === 'dupla'
+      ? 'Duas sessões no topo, com folga e mesma carga. Dá para testar <b>' +
+        esc(cargaEscrita(sugerida.carga, exercicio.unidade)) + '</b>.'
+      : 'Duas sessões no topo. Dá para testar <b>' +
+        esc(cargaEscrita(sugerida.carga, exercicio.unidade)) + '</b>.';
     html += '<div class="sugestao">' +
       '<span>' + recado + '</span>' +
-      '<button class="btn-pequeno btn-laranja" data-acao="aceitar-sugestao" data-i="' + i +
+      '<button class="btn-pequeno btn-destaque" data-acao="aceitar-sugestao" data-i="' + i +
         '" data-valor="' + sugerida.carga + '">Usar</button>' +
       '</div>';
+  } else if (sugerida && sugerida.motivo === 'sem-passo') {
+    html += '<div class="sugestao"><span>Duas sessões no topo, com folga. Dá para avaliar ' +
+      'aumentar a carga. Informe abaixo de quanto em quanto este aparelho sobe e o app ' +
+      'passa a mostrar o número.</span></div>';
+  } else if (sugerida && sugerida.motivo === 'parece-leve') {
+    html += '<div class="sugestao"><span>A carga parece leve; confira o ajuste com o ' +
+      'professor.</span></div>';
+  }
+
+  /* desconforto registrado AGORA: orientação na hora, sem esperar
+     repetir. O app não diz o que é, só o que fazer em seguida. */
+  const nivelDeHoje = item.desconforto && item.desconforto.nivel;
+  if (regraCautelosa() && nivelDeHoje && nivelDeHoje !== 'sem') {
+    html += '<div class="atencao atencao-forte">Você registrou desconforto neste exercício ' +
+      'hoje. Pare o movimento que dói e não force a série. Peça ao professor para conferir ' +
+      'a execução e o ajuste do aparelho antes de repetir. Se o desconforto voltar nas ' +
+      'próximas vezes, procure avaliação profissional. As sugestões de aumento de carga ' +
+      'ficam suspensas neste exercício.</div>';
   }
 
   /* desconforto repetido: só o que você registrou, contado */
@@ -1602,20 +2827,58 @@ function desenharCartao(itemDoTreino, i) {
     html += '<div class="atencao">' + esc(textoDoAviso(aviso)) + '</div>';
   }
 
+  /* marcado como não realizado: nada de série falsa */
+  if (item.pulado) {
+    html += '<div class="bloco bloco-pulado">' +
+      '<div class="rotulo">Marcado como não realizado hoje</div>' +
+      '<input type="text" data-campo="motivo-pulo" data-i="' + i + '" ' +
+        'placeholder="Motivo (opcional): aparelho ocupado, sem tempo..." ' +
+        'value="' + esc(item.motivoDoPulo || '') + '">' +
+      '<button class="btn-largo" data-acao="desmarcar-pulo" data-i="' + i + '">' +
+        'Voltar atrás e registrar</button>' +
+      '</div>';
+    return html + '</div></section>';
+  }
+
   /* carga */
-  if (!exercicio.semCarga) {
-    html += '<div class="bloco"><div class="rotulo">Carga de hoje</div><div class="carga">';
+  if (exercicio.semCarga) {
+    html += '<div class="bloco"><div class="extra-cinza">Exercício com o peso do corpo. ' +
+      'Isso não é carga faltando: o app não sugere quilos aqui.</div></div>';
+  } else {
+    const u = unidadeDe(exercicio);
+    html += '<div class="bloco"><div class="rotulo">' + esc(u.rotulo) + '</div><div class="carga">';
     if (editandoCarga === i) {
       html += '<input class="campo" type="text" inputmode="decimal" data-campo="carga" data-i="' + i +
                 '" value="' + (typeof item.cargaAtualKg === 'number' ? numero(item.cargaAtualKg) : '') + '">' +
-              '<button class="passo btn-laranja" data-acao="carga-ok">OK</button>';
+              '<button class="passo btn-destaque" data-acao="carga-ok">OK</button>';
     } else {
       html += '<button class="passo" data-acao="carga-menos" data-i="' + i + '">−</button>' +
               '<div class="valor" data-acao="carga-editar" data-i="' + i + '">' +
-                numero(item.cargaAtualKg) + ' kg</div>' +
+                numero(item.cargaAtualKg) + ' <small>' + esc(u.curto) + '</small></div>' +
               '<button class="passo" data-acao="carga-mais" data-i="' + i + '">+</button>';
     }
-    html += '</div></div>';
+    html += '</div>';
+
+    /* de quanto em quanto este aparelho sobe. Enquanto ninguém
+       informar, nenhuma sugestão sai com número. */
+    if (regraCautelosa()) {
+      const passo = passoDeCarga(exercicio);
+      if (passo === null) {
+        html += '<div class="rotulo">Este aparelho sobe de quanto em quanto?</div>' +
+          '<div class="fileira fileira-passo">' +
+          PASSOS_DE_CARGA.map(p =>
+            '<button data-acao="passo-carga" data-id="' + esc(exercicio.id) + '" data-valor="' + p +
+            '">' + numero(p) + '</button>').join('') +
+          '</div>' +
+          '<div class="extra-cinza">Sem isso o app não inventa uma carga sugerida. ' +
+            'Se não souber, pergunte ao professor e deixe para depois.</div>';
+      } else {
+        html += '<div class="extra-cinza">Passo deste aparelho: ' + numero(passo) + ' ' +
+          esc(u.curto) + ' · <button class="btn-vinculo" data-acao="limpar-passo" data-id="' +
+          esc(exercicio.id) + '">trocar</button></div>';
+      }
+    }
+    html += '</div>';
   }
 
   /* grade de repetições */
@@ -1625,7 +2888,12 @@ function desenharCartao(itemDoTreino, i) {
 
   html += '<div class="bloco">' +
     '<div class="rotulo">Série ' + numeroDaSerie +
-      (extra ? ' (extra)' : ' de ' + itemDoTreino.series) + ' · repetições</div>' +
+      (extra ? ' (extra)' : ' de ' + itemDoTreino.series) + ' · repetições' +
+      (exercicio.porLado ? ' POR LADO' : '') + '</div>' +
+    (exercicio.porLado
+      ? '<div class="extra-cinza">Faça os dois lados e registre UMA vez: tocar em 8 quer ' +
+        'dizer 8 à direita e 8 à esquerda. Não registre quatro séries.</div>'
+      : '') +
     '<div class="grade-reps' + (ampliada ? ' ampliada' : '') + '">' +
       (ampliada ? opcoesAmpliadas(itemDoTreino.repMin, itemDoTreino.repMax)
                 : opcoesDeReps(itemDoTreino.repMin, itemDoTreino.repMax))
@@ -1642,10 +2910,17 @@ function desenharCartao(itemDoTreino, i) {
         const noTopo = s.reps >= itemDoTreino.repMax;
         return '<div class="chip' + (noTopo ? ' topo' : '') + '">' +
           (n + 1) + 'ª · ' +
-          (typeof s.cargaKg === 'number' ? numero(s.cargaKg) + ' kg · ' : '') +
-          s.reps + (typeof s.rir === 'number' ? ' · RIR ' + s.rir : '') +
+          (typeof s.cargaKg === 'number' ? esc(cargaEscrita(s.cargaKg, s.unidade)) + ' · ' : '') +
+          s.reps + (s.porLado ? '/lado' : '') +
+          (typeof s.rir === 'number' ? ' · RIR ' + s.rir : '') +
           '</div>';
       }).join('') + '</div>';
+  }
+
+  /* não realizado: uma saída honesta, que não cria série nenhuma */
+  if (item.series.length === 0) {
+    html += '<button class="btn-vinculo solto" data-acao="pular-exercicio" data-i="' + i + '">' +
+      'Não fiz este exercício hoje</button>';
   }
   html += '</div>';
 
@@ -1658,11 +2933,26 @@ function desenharCartao(itemDoTreino, i) {
 
     html += '<div class="rotulo">RIR da última série</div>' +
       '<div class="ajuda">Quantas repetições ainda dariam, na hora que a série acabou, sem descansar.</div>' +
+      (regraCautelosa() && exercicio.semCarga
+        ? '<div class="ajuda">Aqui, pense em quantas ainda sairiam com a mesma técnica.</div>'
+        : '') +
       '<div class="fileira fileira-rir">' +
       [0, 1, 2, 3, 4, 5].map(v =>
         '<button data-acao="rir" data-i="' + i + '" data-valor="' + v + '"' +
         (rirAtual === v ? ' class="escolhido"' : '') + '>' + (v === 5 ? '5+' : v) + '</button>'
       ).join('') + '</div>';
+
+    /* como a execução foi. Entra na regra de aumento: sem "boa"
+       informado, o app não sugere subir a carga. */
+    if (regraCautelosa()) {
+      html += '<div class="bloco"><div class="rotulo">Execução</div>' +
+        '<div class="fileira fileira-execucao">' +
+        '<button data-acao="execucao" data-i="' + i + '" data-valor="boa"' +
+          (item.execucao === 'boa' ? ' class="escolhido"' : '') + '>Boa</button>' +
+        '<button data-acao="execucao" data-i="' + i + '" data-valor="melhorar"' +
+          (item.execucao === 'melhorar' ? ' class="escolhido"' : '') + '>Deu para melhorar</button>' +
+        '</div></div>';
+    }
 
     html += '<div class="bloco"><div class="rotulo">Desconforto</div><div class="fileira fileira-desconforto">' +
       NIVEIS.map(n => {
@@ -1685,7 +2975,7 @@ function desenharCartao(itemDoTreino, i) {
       esc(item.observacao) + '</textarea></div>';
 
     if (!item.concluido) {
-      html += '<div class="bloco"><button class="btn-largo btn-laranja" data-acao="concluir-exercicio" data-i="' + i + '">' +
+      html += '<div class="bloco"><button class="btn-largo btn-destaque" data-acao="concluir-exercicio" data-i="' + i + '">' +
         'Concluir exercício</button></div>';
     }
 
@@ -1713,6 +3003,44 @@ document.addEventListener('click', function (evento) {
   const valor = alvo.dataset.valor;
 
   switch (acao) {
+    case 'trocar-perfil':      trocarPerfil(alvo.dataset.id); break;
+    case 'abrir-perfis':       abrirPainel('perfis'); break;
+    case 'ver-caminhadas':     abrirPainel('caminhadas'); break;
+    case 'ver-resumo':         abrirPainel('resumo'); break;
+    case 'ver-plano':          abrirPainel('plano'); break;
+
+    case 'variante':           escolherVariante(i, alvo.dataset.id); break;
+    case 'passo-carga':        definirPassoDeCarga(alvo.dataset.id, Number(valor)); break;
+    case 'limpar-passo':       acharExercicio(alvo.dataset.id).incrementoKg = null;
+                               salvarBanco(); desenhar(); break;
+    case 'execucao':           definirExecucao(i, valor); break;
+    case 'pular-exercicio':    pularExercicio(i); break;
+    case 'desmarcar-pulo':     desmarcarPulo(i); break;
+
+    case 'salvar-caminhada':   registrarCaminhada(); break;
+    case 'apagar-caminhada':   apagarCaminhada(alvo.dataset.id); break;
+    case 'mais-meta':          mudarMetaSemanal(+10); break;
+    case 'menos-meta':         mudarMetaSemanal(-10); break;
+
+    case 'fase':
+      if (valor === 'gestacao' && banco.config.fase !== 'gestacao') {
+        confirmando = {
+          tipo: 'fase', valor: 'gestacao',
+          texto: 'Marcar que você está gestante? As sugestões automáticas de aumento de ' +
+                 'carga ficam suspensas e o app passa a lembrar de revisar o treino com o ' +
+                 'acompanhamento pré-natal. Nada é apagado, o registro continua funcionando ' +
+                 'e dá para voltar atrás quando quiser.',
+          botao: 'Marcar'
+        };
+        desenhar();
+      } else {
+        mudarFase(valor);
+      }
+      break;
+
+    case 'destino-perfil':     restaurarBackup(alvo.dataset.id); break;
+    case 'backup-tudo':        exportarBackup(true); break;
+
     case 'abrir-cartao':       abrirCartao(i); break;
     case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
     case 'grafico-carga':      graficoModo = 'carga'; desenhar(); break;
@@ -1760,7 +3088,7 @@ document.addEventListener('click', function (evento) {
     case 'cancelar':           confirmando = null; backupParaRestaurar = null; desenhar(); break;
 
     case 'desfazer':           desfazer(); break;
-    case 'backup':             exportarBackup(); break;
+    case 'backup':             exportarBackup(false); break;
     case 'restaurar':          pedirBackup(); break;
 
     case 'mais-tempo':         if (cron) { cron.fim += 30000; cron.avisou = false; pintarCronometro(); } break;
@@ -1780,8 +3108,17 @@ document.addEventListener('input', function (evento) {
   if (campo === 'obs') {
     sessao.itens[Number(alvo.dataset.i)].observacao = alvo.value;
     salvarSessao();
+  } else if (campo === 'motivo-pulo') {
+    sessao.itens[Number(alvo.dataset.i)].motivoDoPulo = alvo.value;
+    salvarSessao();
   } else if (campo === 'novo-exercicio') {
     nomeDigitado = alvo.value;
+  } else if (campo === 'minutos') {
+    minutosDigitados = alvo.value;
+  } else if (campo === 'obs-caminhada') {
+    obsDaCaminhada = alvo.value;
+  } else if (campo === 'nome-perfil') {
+    renomearPerfil(alvo.dataset.id, alvo.value);
   } else if (campo === 'carga') {
     const valor = paraNumero(alvo.value);
     if (valor !== null) {
@@ -1826,9 +3163,18 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   });
 }
 
+/* 1. quem são as pessoas do app. Na primeira abertura depois desta
+      versão, os dados que já existiam passam a ser do primeiro perfil,
+      sem nada ser apagado nem transferido para o outro. */
+perfis = migrarParaPerfis();
+perfilId = acharPerfil(perfis.perfilAtual) ? perfis.perfilAtual : perfis.lista[0].id;
+
+/* 2. os dados da pessoa que estava aberta da última vez */
 banco = lerBanco();
 completarComSementes();
+aplicarTema();
 
+/* 3. o treino de agora, dela */
 const salva = lerSessaoSalva();
 if (salva) {
   sessao = salva;

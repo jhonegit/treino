@@ -3,7 +3,9 @@
    se o app tentar abrir um pop up, o teste quebra na hora. */
 const fs = require('fs');
 const vm = require('vm');
-const path = 'C:/Users/Jhonn/app-treino/';
+/* A pasta do PRÓPRIO teste, seja qual for o computador. Antes aqui
+   havia um caminho fixo, que só funcionava numa máquina. */
+const path = __dirname.split('\\').join('/') + '/';
 
 const elemento = () => ({
   innerHTML: '', className: '', value: '', dataset: {},
@@ -71,7 +73,7 @@ confere('campo de carga abriu no exercício 1', rodar('editandoCarga'), 0);
 confere('a repetição ficou guardada esperando', rodar('serieEsperandoCarga'), { i: 0, reps: 12 });
 /* o campo grava a carga a cada letra; aqui simulo isso e toco em OK */
 rodar('sessao.itens[0].cargaAtualKg = 30; fecharCampoDeCarga();');
-confere('série entrou depois do OK', rodar('sessao.itens[0].series'), [{ reps: 12, cargaKg: 30 }]);
+confere('série entrou depois do OK', rodar('sessao.itens[0].series'), [{ reps: 12, cargaKg: 30, unidade: 'kg' }]);
 confere('campo fechou', rodar('editandoCarga'), null);
 
 console.log('\n--- registrar o resto do exercício ---');
@@ -86,7 +88,7 @@ confere('carga foi para cada série', rodar('sessao.itens[0].series.map(s => s.c
 confere('RIR ficou na última série', rodar('sessao.itens[0].series[1].rir'), 2);
 confere('desconforto guardado', rodar('sessao.itens[0].desconforto'), { nivel: 'leve', regioes: ['joelho'] });
 confere('abriu o exercício 2', rodar('sessao.itemAberto'), 1);
-confere('sessão salva no celular', rodar("localStorage.getItem('treino.sessaoAtual') !== null"), true);
+confere('sessão salva no celular', rodar("localStorage.getItem('treino.sessaoAtual.jhone') !== null"), true);
 
 console.log('\n--- desfazer ---');
 rodar('sessao.itens[1].cargaAtualKg = 20; registrarSerie(1, 10); desfazer();');
@@ -102,7 +104,7 @@ confere('cancelar fecha a pergunta', rodar('confirmando'), null);
 console.log('\n--- encerrar como incompleta NÃO empurra a fila ---');
 rodar("arquivarSessao('incompleta')");
 confere('fila continua no A', rodar('proximoTreinoId()'), 'treino-a');
-confere('sessão pendente foi limpa', rodar("localStorage.getItem('treino.sessaoAtual')"), null);
+confere('sessão pendente foi limpa', rodar("localStorage.getItem('treino.sessaoAtual.jhone')"), null);
 
 console.log('\n--- concluir empurra a fila para o B ---');
 rodar("sessao = criarSessao('treino-a'); sessao.itens[0].cargaAtualKg = 30; registrarSerie(0, 12);");
@@ -266,6 +268,12 @@ confere('halter de elevação lateral sobe de 1 em 1', passoDe('elevacao-lateral
 confere('pulley sobe de uma barra por vez', passoDe('puxada-alta'), 1);
 confere('ninguém ficou sem salto',
   rodar('banco.exercicios.filter(e => !e.semCarga && !(e.incrementoKg > 0)).length'), 0);
+
+console.log('\n--- abrir o app nao reescreve nome trocado a mao ---');
+rodar("acharExercicio('remada').nome = 'Remada do jeito que eu chamo'; completarComSementes();");
+confere('o nome escolhido por voce ficou',
+  rodar("acharExercicio('remada').nome"), 'Remada do jeito que eu chamo');
+rodar("acharExercicio('remada').nome = 'Remada';");
 rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; ajustarCarga(1, +1);");
 confere('mais um toque no + vai para 32', rodar('sessao.itens[1].cargaAtualKg'), 32);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
@@ -318,9 +326,14 @@ backupFalso.banco.config.ultimoTreinoConcluido = 'treino-c';
 confere('backup de verdade: aceita',
   rodar('conferirBackup(' + JSON.stringify(JSON.stringify(backupFalso)) + ') !== null'), true);
 
+/* backup ANTIGO nao diz de quem e: o app tem que perguntar o destino */
+rodar("lerArquivoDeBackup(null); backupParaRestaurar = conferirBackup(" +
+  JSON.stringify(JSON.stringify(backupFalso)) + ");");
+confere('backup antigo e reconhecido como antigo', rodar('backupParaRestaurar.formato'), 'antigo');
+
 rodar("salvarFoto('eq-panturrilha','data:image/jpeg;base64,DEAGORA');");
 const sessoesAntes = rodar('banco.sessoes.length');
-rodar('backupParaRestaurar = ' + JSON.stringify(backupFalso) + '; restaurarBackup();');
+rodar("restaurarBackup('jhone');");
 confere('o historico virou o do arquivo', rodar('banco.sessoes.length'), 1);
 confere('a fila seguiu o arquivo (depois do C vem o A)', rodar('proximoTreinoId()'), 'treino-a');
 confere('a foto do arquivo entrou', rodar("lerFoto('eq-remada')"), 'data:image/jpeg;base64,DOBACKUP');
@@ -464,7 +477,7 @@ confere('o descanso subiu 15 segundos', rodar("acharTreino('treino-a').itens[0].
 rodar('mudarDescanso(0, -999);');
 confere('o descanso nao desce abaixo de 30', rodar("acharTreino('treino-a').itens[0].descansoSeg"), 30);
 confere('tudo isso ficou salvo',
-  rodar("JSON.parse(localStorage.getItem('treino.banco')).treinos[0].itens[0].descansoSeg"), 30);
+  rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).treinos[0].itens[0].descansoSeg"), 30);
 
 console.log('\n--- mudar a ordem ---');
 const primeiro = rodar("acharTreino('treino-a').itens[0].exercicioId");
@@ -679,8 +692,9 @@ confere('a confirmação aparece na tela',
 
 /* os testes de edição, lá em cima, mexeram de propósito na lista do dia.
    Daqui para baixo o banco começa limpo, como numa primeira abertura. */
-rodar("localStorage.removeItem('treino.banco');" +
-      "localStorage.removeItem('treino.sessaoAtual');" +
+/* as chaves agora tem o id da pessoa no meio: treino.banco.jhone */
+rodar("localStorage.removeItem(chaveBanco(perfilId));" +
+      "localStorage.removeItem(chaveSessao(perfilId));" +
       "banco = lerBanco(); completarComSementes();" +
       "sessao = criarSessao(proximoTreinoId());");
 
@@ -778,7 +792,7 @@ const bancoAntigo = {
 };
 
 function abrirComoCelularAntigo() {
-  rodar("localStorage.removeItem('treino.sessaoAtual');" +
+  rodar("localStorage.removeItem(chaveSessao(perfilId));" +
         "localStorage.removeItem('treino.copiaAntesDaFicha4');" +
         'fichaPendente = false;' +
         'banco = ' + JSON.stringify(bancoAntigo) + '; salvarBanco(); completarComSementes();' +
@@ -864,13 +878,17 @@ let blobSalvo = null;
 ctx.Blob = function (partes) { blobSalvo = partes[0]; };
 rodar('exportarBackup();');
 const exportado = JSON.parse(blobSalvo);
+/* o arquivo agora vem separado por pessoa: dados.jhone, dados.eliete */
+const deleNoArquivo = exportado.dados[rodar('perfilId')];
+confere('o arquivo diz a versão do formato', exportado.versaoDoFormato, 3);
 confere('o arquivo sai com a ficha nova',
-  exportado.banco.treinos[0].itens.map(i => i.exercicioId)[0], 'leg-press');
-confere('e com todo o histórico dentro', exportado.banco.sessoes.length, 3);
+  deleNoArquivo.banco.treinos[0].itens.map(i => i.exercicioId)[0], 'leg-press');
+confere('e com todo o histórico dentro', deleNoArquivo.banco.sessoes.length, 3);
 confere('o app aceita o próprio arquivo de volta',
   rodar('conferirBackup(' + JSON.stringify(JSON.stringify(exportado)) + ') !== null'), true);
 rodar("banco.sessoes = []; acharTreino('treino-a').itens = []; salvarBanco();");
-rodar('backupParaRestaurar = ' + JSON.stringify(exportado) + '; restaurarBackup();');
+rodar('backupParaRestaurar = conferirBackup(' +
+  JSON.stringify(JSON.stringify(exportado)) + '); restaurarBackup();');
 confere('restaurou o histórico', rodar('banco.sessoes.length'), 3);
 confere('restaurou a ficha', ficha('treino-a').map(i => i[0])[0], 'leg-press');
 confere('e continua na versão 4, sem reaplicar nada', rodar('banco.versaoDosDados'), 4);
@@ -898,6 +916,465 @@ rodar('sessao.itens[0].cargaAtualKg = 100; registrarSerie(0, 12); registrarSerie
 confere('a explicação do RIR está junto do campo',
   rodar("document.getElementById('conteudo').innerHTML")
     .indexOf('Quantas repetições ainda dariam') > -1, true);
+
+/* =============================================================
+   PERFIS: os testes do segundo perfil.
+
+   Daqui para baixo o navegador de mentira é ZERADO e o app é
+   carregado outra vez, para dar para testar a migração desde o
+   começo, como acontece num celular que já tinha o app antigo.
+   Todos os dados usados aqui são inventados.
+   ============================================================= */
+
+function novoApp(gaveta) {
+  const elementos2 = {};
+  const ctx2 = {
+    console,
+    localStorage: {
+      dados: Object.assign({}, gaveta || {}),
+      getItem(k) { return k in this.dados ? this.dados[k] : null; },
+      setItem(k, v) { this.dados[k] = String(v); },
+      removeItem(k) { delete this.dados[k]; },
+      get length() { return Object.keys(this.dados).length; },
+      key(i) { return Object.keys(this.dados)[i]; }
+    },
+    document: {
+      addEventListener() {},
+      getElementById(id) { return elementos2[id] || (elementos2[id] = elemento()); },
+      querySelector() { return null; },
+      createElement() { return elemento(); },
+      documentElement: { atributos: {}, setAttribute(n, v) { this.atributos[n] = v; } },
+      hidden: false
+    },
+    window: { scrollTo() {} },
+    navigator: {},
+    setTimeout, clearTimeout, setInterval, clearInterval,
+    Blob: function () {},
+    URL: { createObjectURL: () => 'x', revokeObjectURL() {} }
+  };
+  ctx2.globalThis = ctx2;
+  vm.createContext(ctx2);
+  vm.runInContext(fs.readFileSync(path + 'dados-iniciais.js', 'utf8'), ctx2);
+  vm.runInContext(fs.readFileSync(path + 'app.js', 'utf8'), ctx2);
+  return {
+    ctx: ctx2,
+    rodar: codigo => vm.runInContext(codigo, ctx2),
+    gaveta: () => ctx2.localStorage.dados
+  };
+}
+
+/* um banco do formato ANTIGO, como o app guardava antes dos perfis */
+function bancoDeAntesDosPerfis() {
+  const base = JSON.parse(JSON.stringify(rodar('DADOS_INICIAIS')));
+  base.sessoes = [
+    { id: 'v1', data: '2026-08-10', treinoId: 'treino-a', estado: 'concluida',
+      itens: [{ exercicioId: 'supino-sentado',
+        series: [{ cargaKg: 26, reps: 12 }, { cargaKg: 26, reps: 11, rir: 2 }],
+        desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
+    { id: 'v2', data: '2026-08-12', treinoId: 'treino-b', estado: 'concluida', itens: [] }
+  ];
+  base.config.ultimoTreinoConcluido = 'treino-b';
+  base.exercicios[1].nome = 'Supino que eu chamo assim';
+  return base;
+}
+
+function gavetaAntiga() {
+  return {
+    'treino.banco': JSON.stringify(bancoDeAntesDosPerfis()),
+    'treino.sessaoAtual': JSON.stringify({
+      id: 'sPend', data: '2026-08-13', treinoId: 'treino-c',
+      iniciadaEm: '2026-08-13T10:00:00.000Z', atualizadaEm: '2026-08-13T10:20:00.000Z',
+      estado: 'emAndamento', itemAberto: 0,
+      itens: [{ exercicioId: 'quadriceps-c', cargaAtualKg: 20,
+        series: [{ cargaKg: 20, reps: 10 }],
+        desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: false }]
+    }),
+    'treino.foto.eq-antigo': 'data:image/jpeg;base64,FOTOVELHA'
+  };
+}
+
+
+console.log('\n--- 1. migracao do app antigo, sem perder nada ---');
+let app = novoApp(gavetaAntiga());
+confere('os dados antigos viraram do primeiro perfil',
+  app.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length"), 2);
+confere('o treino que estava em andamento veio junto',
+  app.rodar("JSON.parse(localStorage.getItem('treino.sessaoAtual.jhone')).id"), 'sPend');
+confere('a foto antiga foi copiada para o perfil',
+  app.rodar("localStorage.getItem('treino.foto.jhone.eq-antigo')"), 'data:image/jpeg;base64,FOTOVELHA');
+confere('o nome que ele tinha trocado nao foi reescrito',
+  app.rodar("acharExercicio('supino-sentado').nome"), 'Supino que eu chamo assim');
+confere('a fila continuou onde estava', app.rodar('proximoTreinoId()'), 'treino-c');
+confere('o app abriu no perfil dele', app.rodar('perfilId'), 'jhone');
+confere('a cor do perfil dele e laranja',
+  app.rodar("document.documentElement.atributos['data-tema']"), 'laranja');
+
+console.log('\n--- a copia de seguranca do formato antigo continua ---');
+confere('a chave antiga do banco nao foi apagada',
+  app.rodar("localStorage.getItem('treino.banco') !== null"), true);
+confere('nem a da sessao antiga',
+  app.rodar("localStorage.getItem('treino.sessaoAtual') !== null"), true);
+
+console.log('\n--- rodar a migracao duas vezes nao duplica nada ---');
+const depoisDaPrimeira = app.gaveta();
+const app2 = novoApp(depoisDaPrimeira);
+confere('continua com dois treinos, nao quatro',
+  app2.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length"), 2);
+confere('o exercicio nao entrou duas vezes no catalogo',
+  app2.rodar("banco.exercicios.filter(e => e.id === 'supino-sentado').length"), 1);
+confere('a sessao pendente continua uma so',
+  app2.rodar("JSON.parse(localStorage.getItem('treino.sessaoAtual.jhone')).id"), 'sPend');
+
+console.log('\n--- 2. dado salvo ilegivel: avisa e nao grava por cima ---');
+const appRuim = novoApp({
+  'treino.perfis': JSON.stringify({
+    versaoDoFormato: 3, perfilAtual: 'jhone',
+    lista: [{ id: 'jhone', nome: 'Jhone', tema: 'laranja', sementes: 'jhone' },
+            { id: 'eliete', nome: 'Eliete', tema: 'rosa', sementes: 'eliete' }]
+  }),
+  'treino.banco.jhone': '{isso aqui nao e json'
+});
+confere('o app avisou em vez de abrir vazio', appRuim.rodar('avisoDeDados !== null'), true);
+confere('a gravacao ficou trancada', appRuim.rodar('dadosTrancados'), true);
+appRuim.rodar("banco.sessoes.push({id:'x', data:'2026-09-01', treinoId:'treino-a', itens:[]}); salvarBanco();");
+confere('o texto estragado continua intacto no aparelho',
+  appRuim.rodar("localStorage.getItem('treino.banco.jhone')"), '{isso aqui nao e json');
+
+console.log('\n--- migracao com dado antigo ilegivel nao escreve nada ---');
+const appAntigoRuim = novoApp({ 'treino.banco': 'nao e json' });
+confere('nao criou banco do perfil a partir do lixo',
+  appAntigoRuim.rodar("localStorage.getItem('treino.banco.jhone')"), null);
+confere('avisou o que aconteceu', appAntigoRuim.rodar('avisoDeDados !== null'), true);
+confere('nao apagou o que estava la',
+  appAntigoRuim.rodar("localStorage.getItem('treino.banco')"), 'nao e json');
+
+console.log('\n--- 3. os dois perfis nao se misturam ---');
+app = novoApp(gavetaAntiga());
+app.rodar("trocarPerfil('eliete');");
+confere('agora e o perfil dela', app.rodar('perfilId'), 'eliete');
+confere('a cor mudou para rosa',
+  app.rodar("document.documentElement.atributos['data-tema']"), 'rosa');
+confere('o historico dela comeca vazio', app.rodar('banco.sessoes.length'), 0);
+confere('a fila dela comeca no A', app.rodar('proximoTreinoId()'), 'treino-a');
+confere('a ficha dela nao tem exercicio do treino dele',
+  app.rodar("banco.exercicios.some(e => e.id === 'quadriceps-a')"), false);
+confere('as cargas dela comecam todas em branco',
+  app.rodar("criarSessao('treino-a').itens.every(it => it.cargaAtualKg === null)"), true);
+confere('nenhum passo de carga foi chutado para ela',
+  app.rodar('banco.exercicios.every(e => e.incrementoKg === null)'), true);
+confere('a regra de progressao dela e a cautelosa',
+  app.rodar('banco.config.regraProgressao'), 'cautelosa');
+confere('a regra dele continua sendo a antiga',
+  app.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).config.regraProgressao"), 'classica');
+confere('nenhuma restricao de joelho passou para ela',
+  app.rodar("JSON.stringify(banco.exercicios).indexOf('joelho reclamar') === -1"), true);
+confere('elevacao lateral nao entrou na ficha dela',
+  app.rodar("banco.treinos.some(t => t.itens.some(i => i.exercicioId.indexOf('elevacao-lateral') === 0))"), false);
+
+console.log('\n--- a sessao de cada um fica esperando onde parou ---');
+app.rodar("sessao.itens[0].cargaAtualKg = 40; registrarSerie(0, 10);");
+confere('ela registrou uma serie', app.rodar('sessao.itens[0].series.length'), 1);
+app.rodar("trocarPerfil('jhone');");
+confere('a sessao dele voltou como estava', app.rodar('sessao.id'), 'sPend');
+confere('sem a serie que ela registrou', app.rodar('sessao.itens[0].series.length'), 1);
+confere('e no exercicio dele', app.rodar('sessao.itens[0].exercicioId'), 'quadriceps-c');
+app.rodar("trocarPerfil('eliete');");
+confere('a dela tambem voltou como estava', app.rodar('sessao.itens[0].series.length'), 1);
+confere('o cronometro nao atravessou a troca', app.rodar('cron'), null);
+confere('nem o desfazer', app.rodar('ultimaAcao'), null);
+
+console.log('\n--- 4. a ficha dela, exatamente como foi pedida ---');
+const esperado = {
+  'treino-a': [
+    ['leg-press', 2, 8, 12, 120],
+    ['supino-sentado-maquina', 2, 8, 12, 120],
+    ['puxada-frente', 2, 8, 12, 120],
+    ['flexora-sentada', 2, 10, 15, 90],
+    ['elevacao-pelvica-banco', 2, 10, 15, 120],
+    ['triceps-corda', 2, 10, 15, 90],
+    ['panturrilha', 2, 12, 20, 90],
+    ['dead-bug', 2, 6, 10, 60]
+  ],
+  'treino-b': [
+    ['romeno-halteres', 2, 8, 12, 120],
+    ['remada-baixa', 2, 8, 12, 120],
+    ['cadeira-extensora', 2, 10, 15, 90],
+    ['supino-sentado-maquina', 2, 8, 12, 120],
+    ['cadeira-abdutora', 2, 12, 20, 90],
+    ['triceps-corda', 2, 10, 15, 90],
+    ['rosca-halteres-sentada', 2, 10, 15, 90],
+    ['abdominal-curto', 2, 10, 15, 60]
+  ],
+  'treino-c': [
+    ['leg-press', 2, 8, 12, 120],
+    ['puxada-frente', 2, 8, 12, 120],
+    ['elevacao-pelvica-banco', 2, 10, 15, 120],
+    ['flexora-sentada', 2, 10, 15, 90],
+    ['supino-sentado-maquina', 2, 8, 12, 120],
+    ['cadeira-abdutora', 2, 12, 20, 90],
+    ['panturrilha', 2, 12, 20, 90],
+    ['dead-bug', 2, 6, 10, 60]
+  ]
+};
+Object.keys(esperado).forEach(id => {
+  const obtido = app.rodar("acharTreino('" + id + "').itens.map(i => " +
+    "[i.exercicioId, i.series, i.repMin, i.repMax, i.descansoSeg])");
+  confere(id + ' com os 8 exercicios na ordem pedida', obtido, esperado[id]);
+});
+confere('16 series de trabalho por sessao',
+  app.rodar("banco.treinos.map(t => t.itens.reduce((s,i) => s + i.series, 0))"), [16, 16, 16]);
+confere('nao entrou adutora so porque existe desenho',
+  app.rodar("banco.exercicios.some(e => e.id.indexOf('adutora') > -1)"), false);
+
+console.log('\n--- desenhos dela: existem e batem com o exercicio ---');
+const semDesenho = app.rodar("banco.exercicios.filter(e => !e.ilustracao && !e.aDefinir).map(e => e.id)");
+confere('todo exercicio tem desenho, fora os a definir', semDesenho, []);
+const faltandoEla = app.rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)')
+  .filter(rel => !fs.existsSync(path + rel));
+confere('todo arquivo de desenho dela existe na pasta', faltandoEla, []);
+const noCache = fs.readFileSync(path + 'sw.js', 'utf8');
+const foraDoCache = app.rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)')
+  .filter(rel => noCache.indexOf(rel) === -1);
+confere('todo desenho dela funciona sem internet', foraDoCache, []);
+
+console.log('\n--- 5. dead bug: duas series, por lado, sem duplicar ---');
+app.rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 7; registrarSerie(7, 8); registrarSerie(7, 8);");
+confere('duas series, nao quatro', app.rodar('sessao.itens[7].series.length'), 2);
+confere('cada registro fica marcado como por lado',
+  app.rodar('sessao.itens[7].series.every(s => s.porLado === true)'), true);
+confere('e sem carga inventada',
+  app.rodar('sessao.itens[7].series.every(s => s.cargaKg === undefined)'), true);
+const cartaoDeadBug = app.rodar("desenhar(); document.getElementById('conteudo').innerHTML");
+confere('a tela explica que a repeticao e por lado',
+  cartaoDeadBug.indexOf('8 à direita e 8 à esquerda') > -1, true);
+confere('a prescricao na tela diz por lado',
+  cartaoDeadBug.indexOf('2 x 6-10 por lado') > -1, true);
+
+console.log('\n--- 6. nada de carga inventada ---');
+confere('exercicio de peso do corpo nao recebe sugestao',
+  app.rodar("sugestaoDeCarga(acharTreino('treino-a').itens[7])"), null);
+confere('exercicio sem historico nao recebe sugestao',
+  app.rodar("sugestaoDeCarga(acharTreino('treino-a').itens[1])"), null);
+
+console.log('\n--- 7. progressao cautelosa: duas execucoes comparaveis ---');
+/* monta execucoes do supino dela, com o retrato do dia */
+const retratoSupino = { nome: 'Supino sentado na máquina', unidade: 'kg', semCarga: false,
+  porLado: false, series: 2, repMin: 8, repMax: 12 };
+function execDela(data, carga, rir, extras) {
+  const item = Object.assign({
+    exercicioId: 'supino-sentado-maquina',
+    retrato: JSON.parse(JSON.stringify(retratoSupino)),
+    series: [{ cargaKg: carga, reps: 12, unidade: 'kg' },
+             { cargaKg: carga, reps: 12, rir: rir, unidade: 'kg' }],
+    desconforto: { nivel: null, regioes: [] },
+    execucao: 'boa', pulado: false, observacao: '', concluido: true
+  }, extras || {});
+  return { id: 'e' + data, data: data, treinoId: 'treino-a', estado: 'concluida', itens: [item] };
+}
+const itemSupinoDela = "acharTreino('treino-a').itens[1]";
+const sugereDela = () => app.rodar('sugestaoDeCarga(' + itemSupinoDela + ')');
+function historicoDela(lista) { app.rodar('banco.sessoes = ' + JSON.stringify(lista) + ';'); }
+
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, 2)]);
+confere('sem o passo do aparelho, avisa mas nao da numero',
+  sugereDela(), { carga: null, motivo: 'sem-passo' });
+app.rodar("definirPassoDeCarga('supino-sentado-maquina', 2.5);");
+confere('com o passo informado, sugere 22,5',
+  sugereDela(), { carga: 22.5, motivo: 'dupla', unidade: 'kg' });
+
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, null)]);
+confere('sem RIR na ultima: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, 2, { desconforto: { nivel: 'leve', regioes: ['ombro'] } })]);
+confere('com desconforto leve: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, 2, { execucao: null })]);
+confere('sem dizer como foi a execucao: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 22.5, 2)]);
+confere('carga diferente nas duas: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2),
+  execDela('2026-09-03', 20, 2, { series: [{ cargaKg: 20, reps: 12, unidade: 'kg' }] })]);
+confere('serie incompleta: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2),
+  execDela('2026-09-03', 20, 2, { series: [{ cargaKg: 20, reps: 12, unidade: 'placa' },
+                                            { cargaKg: 20, reps: 12, rir: 2, unidade: 'placa' }],
+                                  retrato: Object.assign({}, retratoSupino, { unidade: 'placa' }) })]);
+confere('unidade diferente: nao sugere', sugereDela(), null);
+historicoDela([execDela('2026-09-01', 20, 2),
+  execDela('2026-09-03', 20, 2, { retrato: Object.assign({}, retratoSupino, { repMax: 15 }) })]);
+confere('faixa mudou no meio: recomeca a contagem', sugereDela(), null);
+
+console.log('\n--- o atalho do RIR alto nao vira numero para ela ---');
+historicoDela([execDela('2026-09-03', 20, 5)]);
+confere('so avisa que parece leve, sem sugerir carga',
+  sugereDela(), { carga: null, motivo: 'parece-leve' });
+
+console.log('\n--- fase informada suspende as sugestoes ---');
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, 2)]);
+confere('antes de marcar, sugere', sugereDela().carga, 22.5);
+app.rodar("mudarFase('gestacao');");
+confere('marcada a gestacao, nao sugere mais', sugereDela(), null);
+confere('e nada foi apagado', app.rodar('banco.sessoes.length'), 2);
+app.rodar("mudarFase('pre-gestacao');");
+confere('da para voltar atras', sugereDela().carga, 22.5);
+
+console.log('\n--- a regra dele nao mudou por tabela ---');
+app.rodar("trocarPerfil('jhone');");
+app.rodar("banco.sessoes = " + JSON.stringify([
+  { id: 'p1', data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida',
+    itens: [{ exercicioId: 'supino-sentado', series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 12, rir: 2 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
+  { id: 'p2', data: '2026-09-03', treinoId: 'treino-a', estado: 'concluida',
+    itens: [{ exercicioId: 'supino-sentado', series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 12, rir: 2 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] }
+]) + ";");
+/* 32 e nao 31: o supino sentado dele sobe de 2 em 2, conferido na
+   academia em 10/09/2026. A regra antiga continua sendo a antiga. */
+confere('registro antigo dele, sem retrato, continua valendo a regra de antes',
+  app.rodar("sugestaoDeCarga(acharTreino('treino-a').itens[1])"), { carga: 32, motivo: 'normal' });
+app.rodar("trocarPerfil('eliete');");
+
+console.log('\n--- 8. editar a ficha nao reescreve o passado ---');
+historicoDela([execDela('2026-09-01', 20, 2)]);
+app.rodar("acharExercicio('supino-sentado-maquina').nome = 'Supino na maquina da academia nova';");
+app.rodar("abrirEdicao('treino-a'); mudarFaixa(1, 'max', +3); abrirHistorico('supino-sentado-maquina');");
+const painelDela = app.rodar("document.getElementById('painel').innerHTML");
+confere('o historico mostra o nome que o exercicio tinha no dia',
+  painelDela.indexOf('Supino sentado na máquina') > -1, true);
+confere('e a prescricao daquele dia, nao a de agora',
+  painelDela.indexOf('pedido no dia: 2 x 8-12') > -1, true);
+confere('a sessao antiga continua com a faixa antiga',
+  app.rodar('banco.sessoes[0].itens[0].retrato.repMax'), 12);
+app.rodar("abrirEdicao('treino-a'); mudarFaixa(1, 'max', -3); fecharHistorico();");
+app.rodar("acharExercicio('supino-sentado-maquina').nome = 'Supino sentado na máquina';");
+
+console.log('\n--- variante: aparelho escolhido tem historico proprio ---');
+app.rodar("sessao = criarSessao('treino-a');");
+confere('o leg press comeca sem aparelho definido',
+  app.rodar("acharExercicio(sessao.itens[0].exercicioId).aDefinir"), true);
+confere('e sem desenho, para nao mostrar a maquina errada',
+  app.rodar("imagemDoExercicio(acharExercicio('leg-press'))"), null);
+app.rodar("escolherVariante(0, 'leg-press-45');");
+confere('depois de escolher, o exercicio do treino A mudou',
+  app.rodar("acharTreino('treino-a').itens[0].exercicioId"), 'leg-press-45');
+confere('e o do treino C tambem, para ficar a mesma identidade',
+  app.rodar("acharTreino('treino-c').itens[0].exercicioId"), 'leg-press-45');
+/* o desenho do leg press que ja estava no app E o de 45 graus, entao
+   as duas fichas usam o mesmo arquivo. Os exercicios seguem separados. */
+confere('agora tem o desenho certo',
+  app.rodar("imagemDoExercicio(acharExercicio('leg-press-45'))"), 'imagens/leg-press.webp');
+confere('o historico do leg press horizontal continua separado',
+  app.rodar("execucoesDe('leg-press-horizontal').length"), 0);
+app.rodar("sessao.itens[0].cargaAtualKg = 40; registrarSerie(0, 10);");
+app.rodar("escolherVariante(0, 'leg-press-horizontal');");
+confere('com serie registrada hoje, a troca nao acontece',
+  app.rodar("acharTreino('treino-a').itens[0].exercicioId"), 'leg-press-45');
+
+console.log('\n--- pular exercicio nao inventa serie ---');
+app.rodar("sessao = criarSessao('treino-b'); pularExercicio(2);");
+confere('ficou marcado como nao realizado', app.rodar('sessao.itens[2].pulado'), true);
+confere('e nao criou serie nenhuma', app.rodar('sessao.itens[2].series.length'), 0);
+confere('o app sabe diferenciar as tres situacoes',
+  app.rodar("[situacaoDoItem(sessao.itens[2]), situacaoDoItem(sessao.itens[3])]"), ['pulado', 'aberto']);
+app.rodar('desfazer();');
+confere('da para desfazer o pulo', app.rodar('sessao.itens[2].pulado'), false);
+
+console.log('\n--- 9. caminhadas nao empurram a fila A > B > C ---');
+app.rodar("banco.sessoes = []; banco.config.ultimoTreinoConcluido = null; banco.caminhadas = [];");
+confere('a fila esta no A', app.rodar('proximoTreinoId()'), 'treino-a');
+app.rodar("minutosDigitados = '20'; obsDaCaminhada = 'ritmo de conversa'; registrarCaminhada();");
+app.rodar("minutosDigitados = '25'; registrarCaminhada();");
+confere('duas caminhadas registradas', app.rodar('banco.caminhadas.length'), 2);
+confere('45 minutos na semana', app.rodar('minutosDaSemana()'), 45);
+confere('a fila continua no A', app.rodar('proximoTreinoId()'), 'treino-a');
+confere('caminhada nao virou treino registrado', app.rodar('banco.sessoes.length'), 0);
+app.rodar("minutosDigitados = 'abc'; registrarCaminhada();");
+confere('minuto sem numero nao entra', app.rodar('banco.caminhadas.length'), 2);
+app.rodar('desfazer();');
+confere('da para desfazer a ultima', app.rodar('banco.caminhadas.length'), 1);
+
+console.log('\n--- 10. backup do formato novo, com as duas pessoas ---');
+app.rodar("trocarPerfil('jhone');");
+const pacote = app.rodar('JSON.stringify(montarBackup(perfis.lista.map(p => p.id)))');
+const lido = JSON.parse(pacote);
+confere('o arquivo diz a versao do formato', lido.versaoDoFormato, 3);
+confere('e traz as duas pessoas', Object.keys(lido.dados).sort(), ['eliete', 'jhone']);
+confere('com o historico de cada uma', lido.dados.jhone.banco.sessoes.length, 2);
+confere('as caminhadas dela foram junto', lido.dados.eliete.banco.caminhadas.length, 1);
+confere('a sessao em andamento dele foi junto', lido.dados.jhone.sessaoAtual.id, 'sPend');
+
+console.log('\n--- restaurar o formato novo nao mistura as pessoas ---');
+const appLimpo = novoApp({});
+appLimpo.rodar("backupParaRestaurar = conferirBackup(" + JSON.stringify(pacote) + "); restaurarBackup();");
+confere('o historico dele voltou',
+  appLimpo.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length"), 2);
+confere('o dela continua o dela, sem treino registrado',
+  appLimpo.rodar("JSON.parse(localStorage.getItem('treino.banco.eliete')).sessoes.length"), 0);
+confere('e com a caminhada dela',
+  appLimpo.rodar("JSON.parse(localStorage.getItem('treino.banco.eliete')).caminhadas.length"), 1);
+
+console.log('\n--- backup antigo precisa de destino escolhido na tela ---');
+const soBanco = JSON.stringify({ app: 'treino', salvoEm: '2026-08-01T10:00:00.000Z',
+  banco: bancoDeAntesDosPerfis(), sessaoAtual: null, fotos: {} });
+const appDestino = novoApp({});
+confere('o app reconhece que e do formato antigo',
+  appDestino.rodar("conferirBackup(" + JSON.stringify(soBanco) + ").formato"), 'antigo');
+appDestino.rodar("backupParaRestaurar = conferirBackup(" + JSON.stringify(soBanco) + ");" +
+  "lerArquivoDeBackup(null);");
+appDestino.rodar("backupParaRestaurar = conferirBackup(" + JSON.stringify(soBanco) + ");" +
+  "restaurarBackup('eliete');");
+confere('foi para a pessoa escolhida',
+  appDestino.rodar("JSON.parse(localStorage.getItem('treino.banco.eliete')).sessoes.length"), 2);
+confere('e nao para a outra',
+  appDestino.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length"), 0);
+
+console.log('\n--- backup quebrado no meio nao troca nada ---');
+const appMeio = novoApp(gavetaAntiga());
+const antesDoErro = appMeio.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length");
+appMeio.rodar("backupParaRestaurar = { formato: 'perfis', ids: ['jhone','eliete']," +
+  " dados: { dados: { jhone: { banco: { exercicios: [], treinos: [], sessoes: [] } }," +
+  " eliete: { banco: 'isso nao e banco' } } } }; restaurarBackup();");
+confere('o historico dele continua como estava',
+  appMeio.rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).sessoes.length"), antesDoErro);
+
+console.log('\n--- 11. a tela dela fica inteira, e sem pop up ---');
+app.rodar("trocarPerfil('eliete'); sessao = criarSessao('treino-a'); sessao.itemAberto = 0; desenhar();");
+const telaDela = app.rodar("document.getElementById('conteudo').innerHTML");
+confere('a tela foi desenhada', telaDela.length > 0, true);
+confere('o cabecalho tem o botao das duas pessoas',
+  app.rodar("document.getElementById('cabecalho').innerHTML").indexOf('Eliete') > -1, true);
+confere('pergunta qual leg press', telaDela.indexOf('Qual leg press') > -1, true);
+
+/* a mesma regra, agora conferida na TELA e não só na função */
+historicoDela([execDela('2026-09-01', 20, 2), execDela('2026-09-03', 20, 2)]);
+app.rodar("acharExercicio('supino-sentado-maquina').incrementoKg = null;");
+app.rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 1; desenhar();");
+const cartaoSupino = app.rodar("document.getElementById('conteudo').innerHTML");
+confere('sem o passo, a tela avisa mas nao escreve carga nenhuma',
+  [cartaoSupino.indexOf('Informe abaixo de quanto em quanto') > -1,
+   cartaoSupino.indexOf('Dá para testar') === -1], [true, true]);
+app.rodar("definirPassoDeCarga('supino-sentado-maquina', 2.5); desenhar();");
+confere('com o passo informado, a tela mostra 22,5 kg',
+  app.rodar("document.getElementById('conteudo').innerHTML").indexOf('22,5 kg') > -1, true);
+app.rodar('sessao.itemAberto = 0; editandoCarga = 0; desenhar();');
+confere('o teclado da carga e o de numero com virgula',
+  app.rodar("document.getElementById('conteudo').innerHTML").indexOf('inputmode="decimal"') > -1, true);
+app.rodar('editandoCarga = null;');
+app.rodar("abrirPainel('caminhadas');");
+confere('o teclado dos minutos e o de numero',
+  app.rodar("document.getElementById('painel').innerHTML").indexOf('inputmode="numeric"') > -1, true);
+['caminhadas', 'resumo', 'plano', 'perfis'].forEach(nome => {
+  app.rodar("abrirPainel('" + nome + "');");
+  const p = app.rodar("document.getElementById('painel').innerHTML");
+  confere('o painel ' + nome + ' abre sem quebrar', p.length > 50, true);
+});
+app.rodar("fecharHistorico();");
+
+const fonteEla = fs.readFileSync(path + 'app.js', 'utf8');
+confere('o app nao guarda nada sobre historico intimo',
+  ['gestacional', 'aborto', 'perda gest'].every(t => fonteEla.indexOf(t) === -1), true);
+const sementes = fs.readFileSync(path + 'dados-iniciais.js', 'utf8');
+confere('nem as sementes distribuidas',
+  ['gestacional', 'aborto', 'perda gest'].every(t => sementes.indexOf(t) === -1), true);
+
 
 console.log('\n' + (falhas === 0 ? 'TUDO PASSOU' : falhas + ' FALHA(S)'));
 process.exit(falhas === 0 ? 0 : 1);

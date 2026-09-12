@@ -1,21 +1,47 @@
 /* =============================================================
-   SEMENTES: seus treinos, exercícios e equipamentos.
+   SEMENTES: os treinos, exercícios e equipamentos de cada perfil.
 
    Este arquivo NÃO é o app. Ele é só o ponto de partida.
-   Na primeira vez que você abrir o app, tudo isto é copiado para
+   Na primeira vez que um perfil é aberto, tudo dele é copiado para
    dentro do celular. Depois disso, quem manda são os dados salvos,
-   e este arquivo nunca mais é lido.
+   e a semente só volta a ser lida quando o app ganha uma correção
+   que precisa alcançar quem já estava usando (ver versaoDosDados).
 
    Por que os treinos moram aqui, e não dentro do app.js:
-   assim o programa não conhece o nome de nenhum exercício seu, e
-   depois dá para criar a tela de edição sem reescrever nada.
+   assim o programa não conhece o nome de nenhum exercício, e as
+   telas de edição funcionam igual para qualquer ficha.
+
+   São DUAS sementes, uma por pessoa. Elas nunca se misturam: cada
+   perfil tem catálogo, ficha, histórico e ajustes próprios.
+   ============================================================= */
+
+
+/* -----------------------------------------------------------
+   OS PERFIS
+   tema decide a cor da tela. 'laranja' e 'rosa' estão no estilo.css.
+   sementes diz de qual ficha inicial o perfil nasce.
+   O nome pode ser trocado depois, dentro do app.
+   ----------------------------------------------------------- */
+const PERFIS_INICIAIS = {
+  versaoDoFormato: 3,
+  perfilAtual: 'jhone',
+  lista: [
+    { id: 'jhone',  nome: 'Jhone',  tema: 'laranja', sementes: 'jhone'  },
+    { id: 'eliete', nome: 'Eliete', tema: 'rosa',    sementes: 'eliete' }
+  ]
+};
+
+
+/* =============================================================
+   PERFIL 1 — a ficha que já existia no app.
+   Nada aqui foi alterado por causa do segundo perfil.
    ============================================================= */
 
 const DADOS_INICIAIS = {
   versaoDosDados: 4,
 
   /* -----------------------------------------------------------
-     EQUIPAMENTOS: as máquinas físicas da sua academia.
+     EQUIPAMENTOS: as máquinas físicas da academia.
      Ainda vazio. Entra na versão 1.1, com foto e ajustes
      (encosto 4, assento 3). O lugar já existe.
      ----------------------------------------------------------- */
@@ -126,8 +152,206 @@ const DADOS_INICIAIS = {
   /* Sessões já treinadas. Começa vazio. */
   sessoes: [],
 
+  /* Caminhadas registradas. Começa vazio e não empurra a fila A > B > C. */
+  caminhadas: [],
+
   config: {
     ultimoTreinoConcluido: null,
-    incrementoPadraoKg: 1
+    incrementoPadraoKg: 1,
+    /* 'classica' é a regra que este perfil já usava: progressão dupla
+       mais o atalho de carga leve com RIR 4 ou mais. Não mexer. */
+    regraProgressao: 'classica'
   }
+};
+
+
+/* =============================================================
+   PERFIL 2 — ficha de corpo inteiro, três treinos, quase iniciante.
+
+   Diferenças de propósito em relação à ficha acima:
+
+   - incrementoKg começa NULO. O app não inventa um passo de carga:
+     enquanto ele não for informado, nenhuma sugestão numérica sai.
+   - unidade diz o que o número na tela significa. 'kg' é o peso
+     marcado no aparelho, 'kg-halter' é o peso de UM halter, e
+     'placa' é o número da placa, que não vira kg sozinho.
+   - variantes é a lista de aparelhos que servem para aquele lugar
+     da ficha. Cada variante é um exercício separado, com histórico
+     separado: trocar não reescreve o que já foi feito.
+   - porLado avisa que a repetição registrada vale para cada lado.
+   ============================================================= */
+
+const DADOS_ELIETE = {
+  /* Nasce ja na versao atual do app: as correcoes 2, 3 e 4 sao da
+     ficha dele, de antes dos perfis, e nao se aplicam a esta. */
+  versaoDosDados: 4,
+
+  equipamentos: [],
+
+  exercicios: [
+    /* ---- lugar do leg press: o aparelho ainda não foi confirmado ---- */
+    { id: "leg-press", nome: "Leg press (definir o aparelho)", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: null, aDefinir: true,
+      variantes: ["leg-press-45", "leg-press-horizontal"],
+      rotuloVariante: "Qual leg press tem na sua academia?",
+      instrucoes: "Enquanto o aparelho não for escolhido, o app não mostra desenho, para não mostrar a máquina errada. Dá para registrar as séries assim mesmo." },
+
+    { id: "leg-press-45", nome: "Leg press 45 graus", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/leg-press.webp",
+      variantes: ["leg-press-45", "leg-press-horizontal"],
+      rotuloVariante: "Qual leg press tem na sua academia?",
+      instrucoes: "Costas e quadril apoiados, pés na plataforma na largura dos ombros. Desça até onde a lombar continua encostada e volte sem travar o joelho." },
+
+    { id: "leg-press-horizontal", nome: "Leg press horizontal", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/leg-press-horizontal.webp",
+      variantes: ["leg-press-45", "leg-press-horizontal"],
+      rotuloVariante: "Qual leg press tem na sua academia?",
+      instrucoes: "Costas apoiadas no encosto, pés na plataforma na largura dos ombros. Desça controlando e volte sem travar o joelho." },
+
+    { id: "supino-sentado-maquina", nome: "Supino sentado na máquina", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/supino-sentado.webp",
+      instrucoes: "Costas no encosto, pegador na altura do meio do peito. Empurre até quase esticar e volte devagar." },
+
+    { id: "puxada-frente", nome: "Puxada pela frente na polia", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/puxada-alta.webp",
+      instrucoes: "Coxas presas no apoio, peito aberto. Puxe a barra na frente até a altura do queixo e suba controlando." },
+
+    { id: "flexora-sentada", nome: "Flexora sentada", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/flexora-sentada.webp",
+      instrucoes: "Joelho alinhado com o eixo da máquina. Dobre os joelhos empurrando o apoio para baixo e volte devagar." },
+
+    /* ---- lugar do glúteo: banco com halter, ou ponte no chão ---- */
+    { id: "elevacao-pelvica-banco", nome: "Elevação pélvica no banco com halter", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg-halter', ilustracao: "imagens/elevacao-pelvica-banco.webp",
+      variantes: ["elevacao-pelvica-banco", "ponte-gluteos"],
+      rotuloVariante: "Como você vai fazer este exercício?",
+      instrucoes: "Parte alta das costas apoiada no banco, pés firmes no chão. O halter fica estável e protegido sobre o quadril. Suba o quadril apertando o glúteo, sem arquear demais a lombar. Peça ao professor para montar com você nas primeiras vezes." },
+
+    { id: "ponte-gluteos", nome: "Ponte de glúteos no chão", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', semCarga: true, ilustracao: "imagens/ponte-gluteos.webp",
+      variantes: ["elevacao-pelvica-banco", "ponte-gluteos"],
+      rotuloVariante: "Como você vai fazer este exercício?",
+      instrucoes: "Cabeça e ombros apoiados no colchonete, joelhos dobrados e pés no chão. Suba e desça o quadril de forma controlada. Comece sem carga." },
+
+    { id: "triceps-corda", nome: "Tríceps na polia com corda", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/triceps-polia.webp",
+      instrucoes: "Cotovelos junto ao corpo e parados. Estenda até esticar o braço e volte devagar." },
+
+    /* ---- lugar da panturrilha: o aparelho ainda não foi confirmado ---- */
+    { id: "panturrilha", nome: "Panturrilha (definir o aparelho)", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: null, aDefinir: true,
+      variantes: ["panturrilha-leg-press", "panturrilha-sentada"],
+      rotuloVariante: "Onde você faz a panturrilha?",
+      instrucoes: "Enquanto o aparelho não for escolhido, o app não mostra desenho. Dá para registrar as séries assim mesmo." },
+
+    { id: "panturrilha-leg-press", nome: "Panturrilha no leg press", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/panturrilha-leg-press.webp",
+      variantes: ["panturrilha-leg-press", "panturrilha-sentada"],
+      rotuloVariante: "Onde você faz a panturrilha?",
+      instrucoes: "A montagem quem orienta é o professor. Apoie a parte da frente do pé na plataforma, empurre pelo tornozelo e mantenha o joelho sem hiperestender." },
+
+    { id: "panturrilha-sentada", nome: "Panturrilha na máquina sentada", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/panturrilha-sentada.webp",
+      variantes: ["panturrilha-leg-press", "panturrilha-sentada"],
+      rotuloVariante: "Onde você faz a panturrilha?",
+      instrucoes: "Parte da frente do pé no apoio, movimento só pelo tornozelo, subindo e descendo sem pressa." },
+
+    { id: "dead-bug", nome: "Dead bug", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', semCarga: true, porLado: true,
+      ilustracao: "imagens/dead-bug.webp",
+      instrucoes: "Deitada, braços para cima, quadris e joelhos dobrados. Estenda lentamente um braço e a perna oposta, mantendo o tronco estável; volte e alterne. Reduza o alcance se perder o controle ou sentir desconforto." },
+
+    { id: "romeno-halteres", nome: "Levantamento romeno com halteres", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg-halter', ilustracao: "imagens/romeno-halteres.webp",
+      instrucoes: "Joelhos levemente dobrados, coluna firme. Empurre o quadril para trás descendo os halteres rente à perna e volte apertando o glúteo." },
+
+    { id: "remada-baixa", nome: "Remada baixa na polia", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/puxador-remada.webp",
+      instrucoes: "Sentada, coluna firme. Puxe o pegador até a barriga levando os cotovelos para trás e volte controlando." },
+
+    { id: "cadeira-extensora", nome: "Cadeira extensora", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/extensora.webp",
+      instrucoes: "Joelho alinhado com o eixo da máquina. Estenda sem dar solavanco e volte devagar." },
+
+    { id: "cadeira-abdutora", nome: "Cadeira abdutora", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', ilustracao: "imagens/cadeira-abdutora.webp",
+      instrucoes: "Costas no encosto. Abra as pernas contra o apoio e volte controlando, sem bater os pesos." },
+
+    { id: "rosca-halteres-sentada", nome: "Rosca com halteres sentada", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg-halter', ilustracao: "imagens/rosca-halteres-sentado.webp",
+      instrucoes: "Sentada, cotovelos junto ao corpo. Suba o halter dobrando o cotovelo e desça devagar." },
+
+    { id: "abdominal-curto", nome: "Abdominal curto deitada", equipamentoId: null,
+      incrementoKg: null, unidade: 'kg', semCarga: true, ilustracao: "imagens/abdominal-curto.webp",
+      instrucoes: "Deitada, joelhos dobrados. Tire só os ombros do chão, sem puxar o pescoço com as mãos, e desça devagar." }
+  ],
+
+  treinos: [
+    {
+      id: "treino-a", nome: "Treino A", ordem: 1,
+      itens: [
+        { exercicioId: "leg-press",               series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "supino-sentado-maquina",  series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "puxada-frente",           series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "flexora-sentada",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "elevacao-pelvica-banco",  series: 2, repMin: 10, repMax: 15, descansoSeg: 120 },
+        { exercicioId: "triceps-corda",           series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "panturrilha",             series: 2, repMin: 12, repMax: 20, descansoSeg: 90  },
+        { exercicioId: "dead-bug",                series: 2, repMin: 6,  repMax: 10, descansoSeg: 60  }
+      ]
+    },
+    {
+      id: "treino-b", nome: "Treino B", ordem: 2,
+      itens: [
+        { exercicioId: "romeno-halteres",         series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "remada-baixa",            series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "cadeira-extensora",       series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "supino-sentado-maquina",  series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "cadeira-abdutora",        series: 2, repMin: 12, repMax: 20, descansoSeg: 90  },
+        { exercicioId: "triceps-corda",           series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "rosca-halteres-sentada",  series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "abdominal-curto",         series: 2, repMin: 10, repMax: 15, descansoSeg: 60  }
+      ]
+    },
+    {
+      id: "treino-c", nome: "Treino C", ordem: 3,
+      itens: [
+        { exercicioId: "leg-press",               series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "puxada-frente",           series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "elevacao-pelvica-banco",  series: 2, repMin: 10, repMax: 15, descansoSeg: 120 },
+        { exercicioId: "flexora-sentada",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "supino-sentado-maquina",  series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "cadeira-abdutora",        series: 2, repMin: 12, repMax: 20, descansoSeg: 90  },
+        { exercicioId: "panturrilha",             series: 2, repMin: 12, repMax: 20, descansoSeg: 90  },
+        { exercicioId: "dead-bug",                series: 2, repMin: 6,  repMax: 10, descansoSeg: 60  }
+      ]
+    }
+  ],
+
+  sessoes: [],
+  caminhadas: [],
+
+  config: {
+    ultimoTreinoConcluido: null,
+    /* nulo de propósito: o passo de carga de cada aparelho é informado
+       dentro do app, aparelho por aparelho. O app não chuta. */
+    incrementoPadraoKg: null,
+    /* 'cautelosa': duas execuções comparáveis, mesma carga, todas as
+       séries no topo, RIR 2 ou mais, execução marcada como boa e sem
+       desconforto. Sem isso, nenhuma sugestão numérica sai. */
+    regraProgressao: 'cautelosa',
+    /* meta semanal de caminhada, em minutos. Editável na tela. */
+    metaSemanalMin: 50,
+    /* marcação de fase, manual e opcional: 'pre-gestacao' ou 'gestacao' */
+    fase: 'pre-gestacao',
+    /* mostra os botões de Caminhadas, Resumo e Sobre o plano */
+    telasDeAcompanhamento: true
+  }
+};
+
+
+/* Onde o app procura a semente de cada perfil. */
+const SEMENTES = {
+  jhone:  DADOS_INICIAIS,
+  eliete: DADOS_ELIETE
 };
