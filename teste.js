@@ -126,16 +126,26 @@ confere('sem foto, volta o desenho',
 const telaSemBotao = rodar("sessao.itemAberto = 1; desenhar(); document.getElementById('conteudo').innerHTML");
 confere('o cartao nao tem mais botao de foto', telaSemBotao.indexOf('foto-trocar') === -1, true);
 
-console.log('\n--- exercicios em teste ---');
-confere('o do treino A trocou de nome', rodar("acharExercicio('quadriceps-a').nome"), 'Agachamento no Smith');
-confere('o do treino C trocou de nome', rodar("acharExercicio('quadriceps-c').nome"), 'Agachamento Goblet');
-confere('os dois estao marcados como em teste',
-  rodar("[acharExercicio('quadriceps-a').emTeste, acharExercicio('quadriceps-c').emTeste]"), [true, true]);
-confere('o id nao mudou, entao o historico continua colado',
-  rodar("acharTreino('treino-a').itens[0].exercicioId"), 'quadriceps-a');
-rodar("sessao.itemAberto = 0; desenhar();");
-confere('o selo aparece na tela',
-  rodar("document.getElementById('conteudo').innerHTML").indexOf('em teste') > -1, true);
+console.log('\n--- exercicios que sairam da ficha (11/09/2026) ---');
+['quadriceps-a', 'quadriceps-c', 'romeno-halteres', 'tronco', 'rosca-ou-triceps'].forEach(id => {
+  confere(id + ' continua no catalogo, para ler o historico',
+    rodar("acharExercicio('" + id + "') !== undefined"), true);
+});
+confere('nenhum deles esta em treino nenhum',
+  rodar("banco.treinos.some(t => t.itens.some(i => ['quadriceps-a','quadriceps-c','romeno-halteres','tronco','rosca-ou-triceps'].indexOf(i.exercicioId) > -1))"), false);
+confere('nenhum deles fica marcado como em teste',
+  rodar("[acharExercicio('quadriceps-a').emTeste, acharExercicio('quadriceps-c').emTeste].filter(Boolean).length"), 0);
+confere('os exercicios novos tem id proprio, nao sao os antigos renomeados',
+  rodar("['leg-press','abdominal-curto','rosca-halteres-sentado'].every(id => acharExercicio(id) !== undefined)"), true);
+confere('o leg press tem desenho proprio, nao o do agachamento',
+  rodar("acharExercicio('leg-press').ilustracao"), 'imagens/leg-press.webp');
+confere('o abdominal curto tem desenho proprio, nao o da prancha',
+  rodar("acharExercicio('abdominal-curto').ilustracao"), 'imagens/abdominal-curto.webp');
+confere('a rosca sentada tem desenho proprio, nao o da rosca em pe',
+  rodar("acharExercicio('rosca-halteres-sentado').ilustracao"), 'imagens/rosca-halteres-sentado.webp');
+confere('nenhum desenho foi emprestado de outro exercicio',
+  rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)').length,
+  new Set(rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)')).size);
 
 
 console.log('\n--- progressao: caminho normal (duas sessoes) ---');
@@ -223,12 +233,12 @@ historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
 rodar("sessao = criarSessao('treino-a');");
 confere('supino já abre com 30 kg', rodar('sessao.itens[1].cargaAtualKg'), 30);
 confere('exercício sem histórico abre vazio', rodar('sessao.itens[2].cargaAtualKg'), null);
-confere('exercício de tronco não usa carga', rodar("criarSessao('treino-b').itens[6].cargaAtualKg"), null);
+confere('abdominal curto não usa carga', rodar("criarSessao('treino-b').itens[6].cargaAtualKg"), null);
 
 console.log('\n--- ilustrações que vieram com o app ---');
 const semIlustracao = rodar('banco.exercicios.filter(e => !e.ilustracao).map(e => e.id)');
-confere('todo exercício tem ilustração', semIlustracao, []);
-const faltando = rodar('banco.exercicios.map(e => e.ilustracao)')
+confere('todo exercício tem desenho próprio, os três novos inclusive', semIlustracao, []);
+const faltando = rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)')
   .filter(rel => !fs.existsSync(path + rel));
 confere('todo arquivo de imagem existe na pasta', faltando, []);
 confere('exercício sem foto própria mostra a ilustração',
@@ -243,7 +253,8 @@ confere('removida a foto, volta a ilustração',
 console.log('\n--- banco antigo, salvo antes das imagens existirem ---');
 rodar("banco.exercicios.forEach(e => delete e.ilustracao); completarComSementes();");
 confere('as ilustrações foram recolocadas sem apagar nada',
-  rodar('banco.exercicios.filter(e => !e.ilustracao).length'), 0);
+  rodar('banco.exercicios.filter(e => e.ilustracao).length'),
+  rodar('DADOS_INICIAIS.exercicios.filter(e => e.ilustracao).length'));
 confere('o histórico continuou intacto', rodar('banco.sessoes.length > 0'), true);
 
 console.log('\n--- cada aparelho com o seu salto ---');
@@ -267,7 +278,7 @@ rodar("banco.versaoDosDados = 1;" +
       "completarComSementes();");
 confere('corrigiu o supino sentado', passoDe('supino-sentado'), 2);
 confere('corrigiu o pulley', passoDe('puxada-alta'), 1);
-confere('a versão dos dados subiu para 3', rodar('banco.versaoDosDados'), 3);
+confere('a versão dos dados subiu para 4', rodar('banco.versaoDosDados'), 4);
 
 /* o caso de verdade: o celular dele parou na versão 2, com 1 kg em tudo */
 rodar("banco.versaoDosDados = 2;" +
@@ -275,7 +286,7 @@ rodar("banco.versaoDosDados = 2;" +
       "completarComSementes();");
 confere('quem estava na versão 2 também recebe o salto de 2', passoDe('supino-sentado'), 2);
 confere('e o aparelho de barra continua em 1', passoDe('puxada-alta'), 1);
-confere('e chega na versão 3', rodar('banco.versaoDosDados'), 3);
+confere('e chega na versão 4', rodar('banco.versaoDosDados'), 4);
 confere('o histórico continuou lá', rodar('banco.sessoes.length'), 2);
 
 console.log('\n--- arquivos que o app guarda para usar sem internet ---');
@@ -658,6 +669,235 @@ confere('mostra a sugestão de carga', tela.indexOf('32 kg') > -1, true);
 rodar('confirmando = {tipo:"x", texto:"Testando?", botao:"Ok"}; desenhar();');
 confere('a confirmação aparece na tela',
   rodar("document.getElementById('conteudo').innerHTML").indexOf('Testando?') > -1, true);
+
+/* =============================================================
+   FICHA DE 11/09/2026
+   Três dias intercalados, sete exercícios, duas séries cada.
+   Aqui a atualização é testada em cima de uma CÓPIA dos dados
+   antigos, para provar que nada do passado é reescrito.
+   ============================================================= */
+
+/* os testes de edição, lá em cima, mexeram de propósito na lista do dia.
+   Daqui para baixo o banco começa limpo, como numa primeira abertura. */
+rodar("localStorage.removeItem('treino.banco');" +
+      "localStorage.removeItem('treino.sessaoAtual');" +
+      "banco = lerBanco(); completarComSementes();" +
+      "sessao = criarSessao(proximoTreinoId());");
+
+console.log('\n--- a ficha nova, exercício por exercício ---');
+const ficha = id => rodar("acharTreino('" + id + "').itens.map(i => " +
+  "[i.exercicioId, i.series, i.repMin, i.repMax, i.descansoSeg])");
+
+confere('Treino A', ficha('treino-a'), [
+  ['leg-press',        2,  8, 12, 120],
+  ['supino-sentado',   2,  8, 12, 120],
+  ['puxada-alta',      2,  8, 12, 120],
+  ['flexora-sentada',  2, 10, 15, 90],
+  ['elevacao-lateral', 2, 10, 15, 90],
+  ['banco-scott',      2, 10, 15, 90],
+  ['panturrilha',      2, 10, 15, 90]
+]);
+confere('Treino B', ficha('treino-b'), [
+  ['extensora',        2, 10, 15, 90],
+  ['supino-inclinado', 2,  8, 12, 120],
+  ['remada',           2,  8, 12, 120],
+  ['flexora-sentada',  2, 10, 15, 90],
+  ['desenvolvimento',  2,  8, 12, 120],
+  ['triceps-polia',    2, 10, 15, 90],
+  ['abdominal-curto',  2, 10, 15, 90]
+]);
+confere('Treino C', ficha('treino-c'), [
+  ['leg-press',        2,  8, 12, 120],
+  ['pec-deck',         2,  8, 12, 120],
+  ['puxador-remada',   2,  8, 12, 120],
+  ['flexora-sentada',  2, 10, 15, 90],
+  ['elevacao-lateral', 2, 10, 15, 90],
+  ['panturrilha',      2, 10, 15, 90],
+  ['rosca-halteres-sentado', 2, 10, 15, 90]
+]);
+confere('sete exercícios em cada treino',
+  rodar('banco.treinos.map(t => t.itens.length)'), [7, 7, 7]);
+confere('quatorze séries previstas em cada treino',
+  rodar('banco.treinos.map(t => t.itens.reduce((s, i) => s + i.series, 0))'), [14, 14, 14]);
+confere('o leg press do A e o do C são o mesmo exercício',
+  rodar("acharTreino('treino-a').itens[0].exercicioId === acharTreino('treino-c').itens[0].exercicioId"), true);
+confere('o abdominal curto não tem carga',
+  rodar("acharExercicio('abdominal-curto').semCarga"), true);
+confere('a rosca sentada é exercício novo, não a Rosca ou tríceps',
+  rodar("acharExercicio('rosca-halteres-sentado').id !== 'rosca-ou-triceps'"), true);
+
+console.log('\n--- orientações que aparecem no cartão ---');
+confere('o leg press tem a orientação de regulagem e travas',
+  rodar("acharExercicio('leg-press').instrucoes")
+    .indexOf('Confira regulagem e travas com o instrutor') === 0, true);
+confere('a extensora manteve a observação do joelho',
+  rodar("acharExercicio('extensora').instrucoes").indexOf('joelho') > -1, true);
+
+/* ---------- a atualização rodando em cima de dados antigos ---------- */
+
+const exerciciosAntigos = rodar('DADOS_INICIAIS.exercicios')
+  .filter(e => ['leg-press', 'abdominal-curto', 'rosca-halteres-sentado'].indexOf(e.id) === -1)
+  .map(e => Object.assign({}, e, { instrucoes: 'texto antigo' }));
+
+/* o que estava no celular dele antes desta atualização */
+const sessoesAntigas = [
+  { id: 'v3-1', data: '2026-09-05', treinoId: 'treino-a', estado: 'concluida', itens: [
+    { exercicioId: 'quadriceps-a', series: [{ cargaKg: 40, reps: 12 }, { cargaKg: 40, reps: 10, rir: 2 }],
+      desconforto: { nivel: 'leve', regioes: ['joelho'] }, observacao: 'barra pesada', concluido: true },
+    { exercicioId: 'supino-sentado', series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 3 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }
+  ] },
+  { id: 'v3-2', data: '2026-09-08', treinoId: 'treino-c', estado: 'concluida', itens: [
+    { exercicioId: 'rosca-ou-triceps', series: [{ cargaKg: 8, reps: 15 }, { cargaKg: 8, reps: 13, rir: 1 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true },
+    { exercicioId: 'panturrilha', series: [{ cargaKg: 12, reps: 15 }],
+      desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: false }
+  ] }
+];
+
+const bancoAntigo = {
+  versaoDosDados: 3,
+  equipamentos: [],
+  exercicios: exerciciosAntigos,
+  treinos: [
+    { id: 'treino-a', nome: 'Treino A', ordem: 1, itens: [
+      { exercicioId: 'quadriceps-a', series: 2, repMin: 8, repMax: 12, descansoSeg: 120 },
+      { exercicioId: 'supino-sentado', series: 2, repMin: 8, repMax: 12, descansoSeg: 120 }
+    ] },
+    { id: 'treino-b', nome: 'Treino B', ordem: 2, itens: [
+      { exercicioId: 'romeno-halteres', series: 2, repMin: 8, repMax: 12, descansoSeg: 120 },
+      { exercicioId: 'tronco', series: 2, repMin: 12, repMax: 20, descansoSeg: 60 }
+    ] },
+    { id: 'treino-c', nome: 'Treino C', ordem: 3, itens: [
+      { exercicioId: 'quadriceps-c', series: 2, repMin: 8, repMax: 12, descansoSeg: 120 },
+      { exercicioId: 'rosca-ou-triceps', series: 2, repMin: 10, repMax: 15, descansoSeg: 90 }
+    ] }
+  ],
+  sessoes: JSON.parse(JSON.stringify(sessoesAntigas)),
+  config: { ultimoTreinoConcluido: 'treino-c', incrementoPadraoKg: 1 }
+};
+
+function abrirComoCelularAntigo() {
+  rodar("localStorage.removeItem('treino.sessaoAtual');" +
+        "localStorage.removeItem('treino.copiaAntesDaFicha4');" +
+        'fichaPendente = false;' +
+        'banco = ' + JSON.stringify(bancoAntigo) + '; salvarBanco(); completarComSementes();' +
+        'sessao = criarSessao(proximoTreinoId());');
+}
+
+console.log('\n--- celular que estava na ficha antiga recebe a nova ---');
+abrirComoCelularAntigo();
+confere('a versão dos dados chegou na 4', rodar('banco.versaoDosDados'), 4);
+confere('a ficha do dia é a nova', ficha('treino-b').map(i => i[0]),
+  ['extensora', 'supino-inclinado', 'remada', 'flexora-sentada', 'desenvolvimento', 'triceps-polia', 'abdominal-curto']);
+confere('as sessões antigas ficaram idênticas', rodar('banco.sessoes'), sessoesAntigas);
+confere('a fila A > B > C não foi reiniciada',
+  rodar('banco.config.ultimoTreinoConcluido'), 'treino-c');
+confere('e o próximo treino continua sendo o A', rodar('proximoTreinoId()'), 'treino-a');
+
+console.log('\n--- histórico dos exercícios que saíram ---');
+confere('o Smith mantém a sessão dele',
+  rodar("execucoesDe('quadriceps-a').map(e => e.data)"), ['2026-09-05']);
+confere('com a carga original', rodar("cargaDoItem(execucoesDe('quadriceps-a')[0].item)"), 40);
+confere('com o desconforto original',
+  rodar("execucoesDe('quadriceps-a')[0].item.desconforto"), { nivel: 'leve', regioes: ['joelho'] });
+confere('a Rosca ou tríceps mantém a sessão dela',
+  rodar("execucoesDe('rosca-ou-triceps').length"), 1);
+confere('o painel do histórico dele ainda abre',
+  rodar("abrirHistorico('quadriceps-a'); document.getElementById('painel').innerHTML").indexOf('40 kg') > -1, true);
+rodar('fecharHistorico();');
+confere('quem ficou na ficha manteve o histórico',
+  rodar("cargaDoItem(execucoesDe('supino-sentado')[0].item)"), 30);
+
+console.log('\n--- exercício novo não herda carga de exercício antigo ---');
+rodar("sessao = criarSessao('treino-a');");
+confere('o leg press abre sem carga (não veio do Smith)', rodar('sessao.itens[0].cargaAtualKg'), null);
+confere('o supino continua abrindo com a carga dele', rodar('sessao.itens[1].cargaAtualKg'), 30);
+rodar("sessao = criarSessao('treino-c');");
+confere('a rosca sentada abre sem carga (não veio da Rosca ou tríceps)',
+  rodar('sessao.itens[6].cargaAtualKg'), null);
+confere('a panturrilha continua com a carga dela', rodar('sessao.itens[5].cargaAtualKg'), 12);
+rodar("sessao = criarSessao('treino-b');");
+confere('a flexora não herdou carga do romeno', rodar('sessao.itens[3].cargaAtualKg'), null);
+confere('o abdominal curto não usa carga nenhuma', rodar('sessao.itens[6].cargaAtualKg'), null);
+
+console.log('\n--- cópia de segurança antes de mexer nos dados ---');
+const copia = JSON.parse(rodar("localStorage.getItem('treino.copiaAntesDaFicha4')"));
+confere('a cópia foi guardada', copia !== null, true);
+confere('ela tem a ficha ANTIGA, para dar para voltar',
+  copia.banco.treinos[0].itens[0].exercicioId, 'quadriceps-a');
+confere('e o histórico inteiro', copia.banco.sessoes.length, 2);
+
+console.log('\n--- a atualização não se repete a cada abertura ---');
+rodar("acharTreino('treino-a').itens.push({exercicioId:'panturrilha', series:2, repMin:10, repMax:15, descansoSeg:90});");
+rodar('completarComSementes(); completarComSementes();');
+confere('a edição dele foi respeitada, a ficha não voltou a ser imposta',
+  rodar("acharTreino('treino-a').itens.length"), 8);
+rodar("acharTreino('treino-a').itens.pop();");
+
+console.log('\n--- treino em andamento fica com a ficha dele até acabar ---');
+rodar("localStorage.removeItem('treino.copiaAntesDaFicha4'); fichaPendente = false;" +
+      'banco = ' + JSON.stringify(bancoAntigo) + '; salvarBanco();');
+/* uma sessão do treino A da ficha ANTIGA, já com séries registradas */
+rodar("sessao = criarSessao('treino-a'); sessao.itens[0].cargaAtualKg = 40;" +
+      'registrarSerie(0, 12); salvarSessao();');
+rodar('completarComSementes();');
+confere('a atualização ficou esperando', rodar('fichaPendente'), true);
+confere('a ficha do dia continua a antiga', ficha('treino-a').map(i => i[0]),
+  ['quadriceps-a', 'supino-sentado']);
+confere('a série registrada hoje continua no lugar', rodar('sessao.itens[0].series.length'), 1);
+confere('e ainda casa com o exercício certo',
+  rodar("sessao.itens[0].exercicioId"), 'quadriceps-a');
+confere('a versão dos dados ainda não subiu', rodar('banco.versaoDosDados'), 3);
+rodar('pedirConclusaoDoTreino(); executarConfirmacao();');
+confere('encerrado o treino, a ficha nova entrou', ficha('treino-a').map(i => i[0])[0], 'leg-press');
+confere('a versão subiu depois', rodar('banco.versaoDosDados'), 4);
+confere('o treino de hoje foi guardado com o exercício antigo',
+  rodar('banco.sessoes[banco.sessoes.length - 1].itens[0].exercicioId'), 'quadriceps-a');
+confere('e com a carga que ele usou',
+  rodar('banco.sessoes[banco.sessoes.length - 1].itens[0].series[0].cargaKg'), 40);
+confere('a cópia de segurança também foi feita nesse caminho',
+  rodar("localStorage.getItem('treino.copiaAntesDaFicha4') !== null"), true);
+
+console.log('\n--- salvar e restaurar backup com a ficha nova ---');
+let blobSalvo = null;
+ctx.Blob = function (partes) { blobSalvo = partes[0]; };
+rodar('exportarBackup();');
+const exportado = JSON.parse(blobSalvo);
+confere('o arquivo sai com a ficha nova',
+  exportado.banco.treinos[0].itens.map(i => i.exercicioId)[0], 'leg-press');
+confere('e com todo o histórico dentro', exportado.banco.sessoes.length, 3);
+confere('o app aceita o próprio arquivo de volta',
+  rodar('conferirBackup(' + JSON.stringify(JSON.stringify(exportado)) + ') !== null'), true);
+rodar("banco.sessoes = []; acharTreino('treino-a').itens = []; salvarBanco();");
+rodar('backupParaRestaurar = ' + JSON.stringify(exportado) + '; restaurarBackup();');
+confere('restaurou o histórico', rodar('banco.sessoes.length'), 3);
+confere('restaurou a ficha', ficha('treino-a').map(i => i[0])[0], 'leg-press');
+confere('e continua na versão 4, sem reaplicar nada', rodar('banco.versaoDosDados'), 4);
+
+console.log('\n--- o cartão na tela ---');
+rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 0; desenhar();");
+const cartao = rodar("document.getElementById('conteudo').innerHTML");
+confere('o leg press mostra o desenho dele, e nenhum de agachamento',
+  cartao.indexOf('imagens/leg-press.webp') > -1 && cartao.indexOf('imagens/quadriceps') === -1, true);
+confere('e a orientação do leg press aparece',
+  cartao.indexOf('Confira regulagem e travas') > -1, true);
+confere('a prescrição do cartão é 2 x 8-12 com 120s',
+  cartao.indexOf('2 x 8-12 · 120s') > -1, true);
+
+/* exercício criado por ele na tela não tem desenho: aí sim entra o
+   espaço reservado, com o nome dentro */
+rodar("const inventado = criarExercicio('Exercício inventado agora');" +
+      "acharTreino('treino-a').itens[0].exercicioId = inventado.id;" +
+      "sessao = criarSessao('treino-a'); sessao.itemAberto = 0; desenhar();");
+const cartaoSemDesenho = rodar("document.getElementById('conteudo').innerHTML");
+confere('exercício sem desenho mostra espaço reservado com o nome',
+  cartaoSemDesenho.indexOf('sem-desenho') > -1 &&
+  cartaoSemDesenho.indexOf('Exercício inventado agora') > -1, true);
+rodar('sessao.itens[0].cargaAtualKg = 100; registrarSerie(0, 12); registrarSerie(0, 12); desenhar();');
+confere('a explicação do RIR está junto do campo',
+  rodar("document.getElementById('conteudo').innerHTML")
+    .indexOf('Quantas repetições ainda dariam') > -1, true);
 
 console.log('\n' + (falhas === 0 ? 'TUDO PASSOU' : falhas + ' FALHA(S)'));
 process.exit(falhas === 0 ? 0 : 1);

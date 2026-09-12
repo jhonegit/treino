@@ -36,6 +36,7 @@
 const CHAVE_BANCO  = 'treino.banco';        // catálogo + treinos já feitos
 const CHAVE_SESSAO = 'treino.sessaoAtual';  // o treino de agora
 const CHAVE_FOTO   = 'treino.foto.';        // uma chave por aparelho
+const CHAVE_COPIA  = 'treino.copiaAntesDaFicha4';  // rede de segurança, ver guardarCopiaDeSeguranca
 
 function lerBanco() {
   const texto = localStorage.getItem(CHAVE_BANCO);
@@ -103,7 +104,74 @@ function completarComSementes() {
     mudou = true;
   }
 
+  /* Versão 4 (11/09/2026): a ficha nova. Saíram Smith, goblet, romeno e o
+     exercício de tronco; entraram leg press (no A e no C, mesmo id, mesmo
+     histórico), abdominal curto e rosca com halteres sentado. Os que saíram
+     continuam no catálogo, com o histórico intacto.
+
+     Esta é a única parte que reescreve a LISTA DO DIA. Ela roda uma vez só:
+     quando termina, versaoDosDados vira 4 e nunca mais volta aqui. */
+  if (versaoSalva < 4) {
+    if (mudou) salvarBanco();
+    aplicarFichaNova();
+    return;
+  }
+
   if (mudou) salvarBanco();
+}
+
+/* A ficha nova não pode entrar no meio de um treino: os cartões da tela
+   são a lista do dia casada com o que você já registrou, posição por
+   posição. Trocar a lista ali embaralharia tudo. Então, se houver treino
+   em andamento, a troca fica esperando e acontece quando ele encerrar. */
+let fichaPendente = false;
+
+/* Antes de reescrever a lista do dia, guarda uma cópia recuperável do
+   banco inteiro numa chave separada. Só a primeira vez: se a cópia já
+   existe, ela é a boa e não pode ser sobrescrita por uma mais nova. */
+function guardarCopiaDeSeguranca() {
+  try {
+    if (localStorage.getItem(CHAVE_COPIA)) return;
+    localStorage.setItem(CHAVE_COPIA, JSON.stringify({
+      app: 'treino', motivo: 'antes da ficha de 11/09/2026',
+      salvoEm: new Date().toISOString(),               // Date [nativo]
+      banco: banco
+    }));
+  } catch (erro) { /* gaveta cheia: segue sem a cópia, sem travar o app */ }
+}
+
+function aplicarFichaNova() {
+  const emAndamento = lerSessaoSalva();
+  if (emAndamento && sessaoTemRegistro(emAndamento)) { fichaPendente = true; return; }
+
+  guardarCopiaDeSeguranca();
+
+  /* troca só a lista de exercícios de cada treino; nome e ordem ficam.
+     Sessões não são tocadas: o que você treinou está guardado dentro da
+     própria sessão e não depende desta lista para ser mostrado. */
+  DADOS_INICIAIS.treinos.forEach(semente => {
+    const meu = banco.treinos.find(t => t.id === semente.id);
+    if (meu) meu.itens = JSON.parse(JSON.stringify(semente.itens));
+    else banco.treinos.push(JSON.parse(JSON.stringify(semente)));
+  });
+
+  /* as orientações do exercício (leg press, extensora) pertencem ao app,
+     como as ilustrações: seguem as sementes. */
+  DADOS_INICIAIS.exercicios.forEach(semente => {
+    const meu = banco.exercicios.find(e => e.id === semente.id);
+    if (meu) meu.instrucoes = semente.instrucoes;
+  });
+
+  banco.versaoDosDados = 4;
+  salvarBanco();
+}
+
+/* Chamada toda vez que um treino termina, de qualquer jeito. Se não havia
+   ficha esperando, não faz nada. */
+function aplicarFichaPendente() {
+  if (!fichaPendente) return;
+  fichaPendente = false;
+  aplicarFichaNova();
 }
 
 function lerSessaoSalva() {
@@ -830,6 +898,7 @@ function pedirTrocaDeTreino() {
 
 function trocarTreino(destinoId) {
   apagarSessaoSalva();
+  aplicarFichaPendente();
   sessao = criarSessao(destinoId);
   confirmando = null;
   pararDescanso();
@@ -846,6 +915,7 @@ function arquivarSessao(estado) {
   salvarBanco();
   apagarSessaoSalva();
   const nome = acharTreino(sessao.treinoId).nome;
+  aplicarFichaPendente();   // a ficha nova, se estava esperando o fim do treino
   sessao = criarSessao(proximoTreinoId());
   confirmando = null;
   perguntarSobrePendente = false;
@@ -885,6 +955,7 @@ function executarConfirmacao() {
   if (pedido.tipo === 'apagar-sessao')   return apagarSessao(pedido.sessaoId);
   if (pedido.tipo === 'descartar') {
     apagarSessaoSalva();
+    aplicarFichaPendente();
     perguntarSobrePendente = false;
     sessao = criarSessao(proximoTreinoId());
     desenhar();
@@ -1464,7 +1535,9 @@ function desenharCartao(itemDoTreino, i) {
   let html = '<section class="cartao' + (aberto ? ' aberto' : '') + '">' +
     '<div class="cabeca-cartao" data-acao="abrir-cartao" data-i="' + i + '">' +
       '<div class="numero">' + (i + 1) + '</div>' +
-      (imagem && !aberto ? '<img class="miniatura" src="' + imagem + '" alt="">' : '') +
+      (aberto ? '' : (imagem
+        ? '<img class="miniatura" src="' + imagem + '" alt="">'
+        : '<div class="miniatura sem-desenho"></div>')) +
       '<div class="nome-exercicio">' + esc(exercicio.nome) +
         (exercicio.emTeste ? ' <span class="selo">em teste</span>' : '') +
         '<div class="prescricao">' + prescricao + ' · ' + itemDoTreino.descansoSeg + 's</div>' +
@@ -1478,9 +1551,18 @@ function desenharCartao(itemDoTreino, i) {
 
   html += '<div class="corpo-cartao">';
 
-  /* o desenho do exercício, sem botão nenhum: nada para tocar aqui */
+  /* o desenho do exercício, sem botão nenhum: nada para tocar aqui.
+     Sem desenho certo, fica um espaço neutro com o nome. Emprestar o
+     desenho de outro movimento seria pior do que não ter desenho. */
   if (imagem) {
     html += '<img class="foto" src="' + imagem + '" alt="' + esc(exercicio.nome) + '">';
+  } else {
+    html += '<div class="foto sem-desenho"><span>' + esc(exercicio.nome) + '</span></div>';
+  }
+
+  /* orientação do exercício, quando existe (leg press, extensora) */
+  if (exercicio.instrucoes) {
+    html += '<div class="instrucoes">' + esc(exercicio.instrucoes) + '</div>';
   }
 
   /* última vez */
@@ -1574,7 +1656,9 @@ function desenharCartao(itemDoTreino, i) {
 
     html += '<div class="fechamento">';
 
-    html += '<div class="rotulo">RIR da última série</div><div class="fileira fileira-rir">' +
+    html += '<div class="rotulo">RIR da última série</div>' +
+      '<div class="ajuda">Quantas repetições ainda dariam, na hora que a série acabou, sem descansar.</div>' +
+      '<div class="fileira fileira-rir">' +
       [0, 1, 2, 3, 4, 5].map(v =>
         '<button data-acao="rir" data-i="' + i + '" data-valor="' + v + '"' +
         (rirAtual === v ? ' class="escolhido"' : '') + '>' + (v === 5 ? '5+' : v) + '</button>'

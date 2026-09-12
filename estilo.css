@@ -214,6 +214,44 @@ button:active { transform: scale(0.97); }
 /* na miniatura o corte é proposital: só precisa dar a pista visual */
 .miniatura { background: #fff; }
 
+/* Exercício sem desenho próprio: espaço reservado neutro, com o nome.
+   Nunca emprestar o desenho de outro movimento só para preencher. */
+.sem-desenho {
+  background: var(--fundo-morno);
+  border: 1px dashed var(--borda-forte);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.foto.sem-desenho span {
+  color: var(--marrom-claro);
+  font-size: 15px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* orientação curta do exercício, logo abaixo do desenho */
+.instrucoes {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--laranja);
+  background: var(--laranja-fundo);
+  border-radius: 0 8px 8px 0;
+  color: var(--marrom);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* explicação curta de um campo, logo abaixo do rótulo */
+.ajuda {
+  color: var(--marrom-claro);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -4px 0 8px;
+}
+
 /* selo de exercício que ainda está sendo testado */
 .selo {
   display: inline-block;

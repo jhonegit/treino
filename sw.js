@@ -14,7 +14,7 @@
    embaixo. É isso que avisa o celular que existe coisa nova.
    ============================================================= */
 
-const CACHE = 'treino-v11';
+const CACHE = 'treino-v13';
 
 const ARQUIVOS = [
   './',
@@ -26,11 +26,13 @@ const ARQUIVOS = [
   './icones/icone-192.png',
   './icones/icone-512.png',
   './icones/icone-180.png',
+  './imagens/abdominal-curto.webp',
   './imagens/banco-scott.webp',
   './imagens/desenvolvimento.webp',
   './imagens/elevacao-lateral.webp',
   './imagens/extensora.webp',
   './imagens/flexora-sentada.webp',
+  './imagens/leg-press.webp',
   './imagens/panturrilha.webp',
   './imagens/pec-deck.webp',
   './imagens/puxada-alta.webp',
@@ -39,6 +41,7 @@ const ARQUIVOS = [
   './imagens/quadriceps-c.webp',
   './imagens/remada.webp',
   './imagens/romeno-halteres.webp',
+  './imagens/rosca-halteres-sentado.webp',
   './imagens/rosca-ou-triceps.webp',
   './imagens/supino-inclinado.webp',
   './imagens/supino-sentado.webp',
