@@ -1376,5 +1376,24 @@ confere('nem as sementes distribuidas',
   ['gestacional', 'aborto', 'perda gest'].every(t => sementes.indexOf(t) === -1), true);
 
 
+console.log('\n--- 12. treino parado no meio da semana pode ser fechado ---');
+/* Ele fez 5 dos 7 exercicios e saiu. No dia seguinte o aviso da sessao
+   antiga precisa deixar concluir, senao a fila nunca sai do treino A. */
+app.rodar("trocarPerfil('jhone'); banco.sessoes = []; banco.config.ultimoTreinoConcluido = null;" +
+  "sessao = criarSessao('treino-a');" +
+  "for (let i = 0; i < 5; i++) { sessao.itens[i].cargaAtualKg = 20; registrarSerie(i, 12); }" +
+  "perguntarSobrePendente = true; desenhar();");
+const avisoAntigo = app.rodar("document.getElementById('conteudo').innerHTML");
+confere('o aviso oferece encerrar como concluida',
+  avisoAntigo.indexOf('data-acao="sessao-concluir"') > -1, true);
+confere('e continua oferecendo incompleta',
+  avisoAntigo.indexOf('data-acao="sessao-incompleta"') > -1, true);
+app.rodar("pedirConclusaoDoTreino();");
+confere('a confirmacao diz quantos exercicios foram',
+  app.rodar('confirmando.texto').indexOf('5 de 7') > -1, true);
+app.rodar("executarConfirmacao();");
+confere('a fila andou para o treino B', app.rodar('proximoTreinoId()'), 'treino-b');
+confere('o aviso saiu da tela', app.rodar('perguntarSobrePendente'), false);
+
 console.log('\n' + (falhas === 0 ? 'TUDO PASSOU' : falhas + ' FALHA(S)'));
 process.exit(falhas === 0 ? 0 : 1);

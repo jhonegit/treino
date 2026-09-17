@@ -2691,6 +2691,7 @@ function desenharAviso() {
       seriesDaSessao(sessao) + ' séries registradas.</p>' +
     '<div class="botoes">' +
       '<button class="btn-largo btn-destaque" data-acao="sessao-continuar">Continuar</button>' +
+      '<button class="btn-largo" data-acao="sessao-concluir">Encerrar como concluída</button>' +
       '<button class="btn-largo" data-acao="sessao-incompleta">Encerrar como incompleta</button>' +
       '<button class="btn-largo btn-perigo" data-acao="sessao-descartar">Descartar</button>' +
     '</div></div>';
@@ -3095,6 +3096,7 @@ document.addEventListener('click', function (evento) {
     case 'pular-descanso':     pararDescanso(); break;
 
     case 'sessao-continuar':   perguntarSobrePendente = false; desenhar(); break;
+    case 'sessao-concluir':    pedirConclusaoDoTreino(); break;
     case 'sessao-incompleta':  arquivarSessao('incompleta'); break;
     case 'sessao-descartar':   pedirDescarte(); break;
   }
