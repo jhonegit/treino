@@ -38,7 +38,7 @@ const PERFIS_INICIAIS = {
    ============================================================= */
 
 const DADOS_INICIAIS = {
-  versaoDosDados: 4,
+  versaoDosDados: 5,
 
   /* -----------------------------------------------------------
      EQUIPAMENTOS: as máquinas físicas da academia.
@@ -80,12 +80,42 @@ const DADOS_INICIAIS = {
     { id: "supino-inclinado",    nome: "Supino inclinado",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/supino-inclinado.webp", instrucoes: "" },
     { id: "remada",              nome: "Remada",                      equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/remada.webp", instrucoes: "" },
     { id: "desenvolvimento",     nome: "Desenvolvimento de ombros",   equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/desenvolvimento.webp", instrucoes: "" },
-    { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia.webp", instrucoes: "" },
+    { id: "triceps-polia",       nome: "Tríceps na polia",            equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/triceps-polia-barra.webp", instrucoes: "" },
     { id: "abdominal-curto",     nome: "Abdominal curto deitado",     equipamentoId: null, incrementoKg: 0,   semCarga: true, ilustracao: "imagens/abdominal-curto.webp", instrucoes: "Sem peso nenhum. Conte repetições, não segundos." },
 
     { id: "pec-deck",            nome: "Pec deck (voador)",           equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/pec-deck.webp", instrucoes: "" },
     { id: "puxador-remada",      nome: "Puxador com remada",          equipamentoId: null, incrementoKg: 1,   ilustracao: "imagens/puxador-remada.webp", instrucoes: "" },
     { id: "rosca-halteres-sentado", nome: "Rosca com halteres sentado", equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/rosca-halteres-sentado.webp", instrucoes: "" },
+
+    /* ---------- entraram em 18/09/2026, com os dois blocos ----------
+       Todos com salto de 1 até ele conferir na academia. Os de
+       "porLado" são feitos um lado de cada vez: a repetição anotada
+       vale para cada lado. A abdutora e a panturrilha no leg press
+       usam os desenhos que já existiam para a ficha da Eliete. */
+    { id: "peck-deck-reverso",        nome: "Peck deck reverso",                 equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/peck-deck-reverso.webp", instrucoes: "" },
+    { id: "rosca-martelo-sentado",    nome: "Rosca martelo sentado",             equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/rosca-martelo-sentado.webp", instrucoes: "" },
+    { id: "triceps-testa-halteres",   nome: "Tríceps testa deitado",             equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/triceps-testa-halteres.webp", instrucoes: "" },
+    { id: "triceps-corda",            nome: "Tríceps corda na polia",            equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/triceps-corda.webp", instrucoes: "" },
+    { id: "flexora-deitada",          nome: "Flexora deitada",                   equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/flexora-deitada.webp", instrucoes: "" },
+    { id: "maquina-gluteo",           nome: "Máquina de glúteo",                 equipamentoId: null, incrementoKg: 1, porLado: true, ilustracao: "imagens/maquina-gluteo.webp", instrucoes: "" },
+    { id: "cadeira-adutora",          nome: "Cadeira adutora",                   equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/cadeira-adutora.webp", instrucoes: "" },
+    { id: "cadeira-abdutora",         nome: "Cadeira abdutora",                  equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/cadeira-abdutora.webp", instrucoes: "" },
+    { id: "abdominal-articulado",     nome: "Abdominal articulado",              equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/abdominal-articulado.webp", instrucoes: "" },
+    { id: "supino-halteres-deitado",  nome: "Supino com halteres deitado",       equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/supino-halteres-deitado.webp", instrucoes: "" },
+    { id: "supino-inclinado-halteres",nome: "Supino inclinado com halteres",     equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/supino-inclinado-halteres.webp", instrucoes: "" },
+    { id: "crucifixo-cross",          nome: "Crucifixo no cross over",           equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/crucifixo-cross.webp", instrucoes: "" },
+    { id: "pulley-supinado",          nome: "Pulley pegada supinada",            equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/pulley-supinado.webp", instrucoes: "" },
+    { id: "remada-unilateral-halter", nome: "Remada unilateral com halter",      equipamentoId: null, incrementoKg: 1, porLado: true, ilustracao: "imagens/remada-unilateral-halter.webp", instrucoes: "" },
+    { id: "pullover-polia",           nome: "Pullover na polia",                 equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/pullover-polia.webp", instrucoes: "" },
+    { id: "elevacao-lateral-polia",   nome: "Elevação lateral na polia",         equipamentoId: null, incrementoKg: 1, porLado: true, ilustracao: "imagens/elevacao-lateral-polia.webp", instrucoes: "" },
+    { id: "face-pull",                nome: "Face pull na polia",                equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/face-pull.webp", instrucoes: "" },
+    { id: "rosca-polia-baixa",        nome: "Rosca na polia baixa",              equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/rosca-polia-baixa.webp", instrucoes: "" },
+    { id: "rosca-concentrada",        nome: "Rosca concentrada sentado",         equipamentoId: null, incrementoKg: 1, porLado: true, ilustracao: "imagens/rosca-concentrada.webp", instrucoes: "" },
+    { id: "rosca-inclinada",          nome: "Rosca inclinada no banco",          equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/rosca-inclinada.webp", instrucoes: "" },
+    { id: "triceps-invertido-polia",  nome: "Tríceps na polia pegada invertida", equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/triceps-invertido-polia.webp", instrucoes: "" },
+    { id: "triceps-coice",            nome: "Tríceps coice com halter",          equipamentoId: null, incrementoKg: 1, porLado: true, ilustracao: "imagens/triceps-coice.webp", instrucoes: "" },
+    { id: "triceps-acima-cabeca",     nome: "Tríceps acima da cabeça na polia",  equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/triceps-acima-cabeca.webp", instrucoes: "" },
+    { id: "panturrilha-leg-press",    nome: "Panturrilha no leg press",          equipamentoId: null, incrementoKg: 1, ilustracao: "imagens/panturrilha-leg-press.webp", instrucoes: "" },
 
     /* ---------- saíram da ficha em 11/09/2026 ----------
        Continuam aqui de propósito. O histórico deles segue
@@ -99,20 +129,121 @@ const DADOS_INICIAIS = {
   ],
 
   /* -----------------------------------------------------------
-     TREINOS: a lista do dia. Revisão de 11/09/2026.
-     Três dias por semana, intercalados. Sete exercícios, duas
-     séries cada: 14 séries por treino.
+     TREINOS: a lista do dia. Revisão de 18/09/2026.
+     Três dias por semana, intercalados. Nove exercícios, duas
+     séries cada: 18 séries por treino.
+
+     São DOIS blocos que se revezam. O bloco dura seis treinos
+     concluídos (A, B e C duas vezes, umas duas semanas) e depois
+     o app passa sozinho para o outro. Seis, e não três, para cada
+     exercício aparecer duas vezes seguidas: é o que a regra de
+     subir carga precisa ver.
+
+     A perna quase não muda de um bloco para o outro, de propósito:
+     o joelho dele não recebe aparelho novo. A variedade fica em
+     peito, costas, ombro e braço.
 
      Séries, faixa de repetições e descanso ficam AQUI, no item do
      treino, e não no exercício. É isso que permite o mesmo
      exercício aparecer com 2 x 8-12 num treino e 3 x 12-15 noutro.
 
-     O leg press é o MESMO exercício no A e no C (id leg-press),
-     de propósito: os dois dias somam no mesmo histórico.
+     O mesmo exercício em treinos diferentes (leg press, flexora,
+     máquina de glúteo) usa o MESMO id: todos somam no mesmo
+     histórico.
+
+     Os treinos A, B e C da ficha de 11/09 continuam aqui com
+     "arquivado": fora da fila e da edição, mas o histórico ainda
+     precisa do nome deles para mostrar os dias em que foram feitos.
      ----------------------------------------------------------- */
   treinos: [
     {
-      id: "treino-a", nome: "Treino A", ordem: 1,
+      id: "treino-a1", nome: "Treino A1", ordem: 1, bloco: 1,
+      itens: [
+        { exercicioId: "leg-press",              series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "supino-sentado",         series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "puxada-alta",            series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "elevacao-lateral",       series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "banco-scott",            series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-polia",          series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "flexora-sentada",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "panturrilha",            series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "abdominal-curto",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+    {
+      id: "treino-b1", nome: "Treino B1", ordem: 2, bloco: 1,
+      itens: [
+        { exercicioId: "extensora",              series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "supino-inclinado",       series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "remada",                 series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "desenvolvimento",        series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "rosca-martelo-sentado",  series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-testa-halteres", series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "maquina-gluteo",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "cadeira-adutora",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "abdominal-articulado",   series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+    {
+      id: "treino-c1", nome: "Treino C1", ordem: 3, bloco: 1,
+      itens: [
+        { exercicioId: "leg-press",              series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "pec-deck",               series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "puxador-remada",         series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "peck-deck-reverso",      series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "rosca-halteres-sentado", series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-corda",          series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "flexora-deitada",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "cadeira-abdutora",       series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "panturrilha",            series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+    {
+      id: "treino-a2", nome: "Treino A2", ordem: 4, bloco: 2,
+      itens: [
+        { exercicioId: "leg-press",               series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "supino-halteres-deitado", series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "pulley-supinado",         series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "elevacao-lateral-polia",  series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "rosca-polia-baixa",       series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-invertido-polia", series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "flexora-deitada",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "panturrilha-leg-press",   series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "abdominal-articulado",    series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+    {
+      id: "treino-b2", nome: "Treino B2", ordem: 5, bloco: 2,
+      itens: [
+        { exercicioId: "extensora",                 series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "supino-inclinado-halteres", series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "remada-unilateral-halter",  series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "desenvolvimento",           series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "rosca-concentrada",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-coice",             series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "maquina-gluteo",            series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "cadeira-abdutora",          series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "abdominal-curto",           series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+    {
+      id: "treino-c2", nome: "Treino C2", ordem: 6, bloco: 2,
+      itens: [
+        { exercicioId: "leg-press",              series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
+        { exercicioId: "crucifixo-cross",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "pullover-polia",         series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "face-pull",              series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "rosca-inclinada",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "triceps-acima-cabeca",   series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "flexora-sentada",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "cadeira-adutora",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
+        { exercicioId: "panturrilha",            series: 2, repMin: 10, repMax: 15, descansoSeg: 90  }
+      ]
+    },
+
+    /* ---------- ficha de 11/09/2026, arquivada em 18/09 ---------- */
+    {
+      id: "treino-a", nome: "Treino A", ordem: 91, arquivado: true,
       itens: [
         { exercicioId: "leg-press",        series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
         { exercicioId: "supino-sentado",   series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
@@ -124,7 +255,7 @@ const DADOS_INICIAIS = {
       ]
     },
     {
-      id: "treino-b", nome: "Treino B", ordem: 2,
+      id: "treino-b", nome: "Treino B", ordem: 92, arquivado: true,
       itens: [
         { exercicioId: "extensora",        series: 2, repMin: 10, repMax: 15, descansoSeg: 90  },
         { exercicioId: "supino-inclinado", series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
@@ -136,7 +267,7 @@ const DADOS_INICIAIS = {
       ]
     },
     {
-      id: "treino-c", nome: "Treino C", ordem: 3,
+      id: "treino-c", nome: "Treino C", ordem: 93, arquivado: true,
       itens: [
         { exercicioId: "leg-press",        series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
         { exercicioId: "pec-deck",         series: 2, repMin: 8,  repMax: 12, descansoSeg: 120 },
@@ -149,6 +280,214 @@ const DADOS_INICIAIS = {
     }
   ],
 
+  /* -----------------------------------------------------------
+     COMO FAZER: três linhas por exercício, que aparecem no cartão
+     aberto. Moram só aqui, e o app lê direto daqui: não são copiadas
+     para o celular, então corrigir um texto aqui corrige na tela na
+     próxima publicação, sem mexer em versaoDosDados.
+     ----------------------------------------------------------- */
+  comoFazer: {
+    "leg-press": [
+      "Encosto confortável, pés no meio da plataforma, na largura do quadril.",
+      "Destrave, desça dobrando os joelhos até onde for confortável e empurre de volta.",
+      "Não estique o joelho até travar lá no alto e mantenha o quadril colado no banco."
+    ],
+    "supino-sentado": [
+      "Banco na altura em que as pegadas fiquem na linha do meio do peito.",
+      "Empurre as pegadas para a frente até quase esticar os braços e volte devagar.",
+      "Costas apoiadas e ombros para trás o tempo todo."
+    ],
+    "puxada-alta": [
+      "Coxas presas embaixo do apoio, barra um pouco mais aberta que os ombros.",
+      "Puxe a barra até a altura do queixo, levando os cotovelos para baixo.",
+      "Não jogue o corpo para trás para ajudar e volte a barra devagar."
+    ],
+    "elevacao-lateral": [
+      "Sentado ou em pé, um halter em cada mão, braços ao lado do corpo.",
+      "Suba os braços para os lados até a altura dos ombros, cotovelos levemente dobrados.",
+      "Peso leve. Não balance o corpo para subir."
+    ],
+    "banco-scott": [
+      "Axila encostada no alto do apoio, braços esticados sobre a almofada.",
+      "Dobre os cotovelos subindo a barra até perto do rosto e desça devagar.",
+      "Não estique o braço de uma vez no final: é onde o cotovelo mais sofre."
+    ],
+    "triceps-polia": [
+      "Polia no alto com a barra reta (ou a corda), em pé bem perto do cabo.",
+      "Com os cotovelos colados ao corpo, estique os braços empurrando a barra para baixo.",
+      "Só o antebraço se mexe: o cotovelo fica parado."
+    ],
+    "flexora-sentada": [
+      "Joelho alinhado com o eixo da máquina e o rolo logo acima do calcanhar.",
+      "Dobre os joelhos puxando o rolo para baixo e volte devagar.",
+      "Coxas presas pelo apoio, sem tirar o quadril do banco."
+    ],
+    "panturrilha": [
+      "Joelhos sob o apoio, ponta dos pés na plataforma, calcanhares para fora.",
+      "Suba os calcanhares o máximo que der, segure um segundo e desça até alongar.",
+      "Movimento lento, sem quicar embaixo."
+    ],
+    "abdominal-curto": [
+      "Deitado de barriga para cima, joelhos dobrados e pés no chão.",
+      "Tire só os ombros do chão, contraindo a barriga, e volte devagar.",
+      "Não puxe a cabeça com as mãos."
+    ],
+    "extensora": [
+      "Encosto ajustado para o joelho ficar alinhado com o eixo da máquina, rolo acima do tornozelo.",
+      "Estique as pernas levantando o rolo e desça devagar.",
+      "Se o joelho reclamar, diminua a amplitude ou pule o exercício."
+    ],
+    "supino-inclinado": [
+      "Banco ajustado para as pegadas ficarem na altura da parte de cima do peito.",
+      "Empurre para a frente e para cima até quase esticar os braços e volte devagar.",
+      "Costas apoiadas e ombros para trás."
+    ],
+    "remada": [
+      "Peito encostado no apoio, braços esticados segurando as pegadas.",
+      "Puxe as pegadas em direção à barriga, juntando as escápulas (os ossos das costas).",
+      "Não afaste o peito do apoio para puxar."
+    ],
+    "desenvolvimento": [
+      "Sentado no banco com encosto reto, halteres na altura das orelhas.",
+      "Empurre para cima até quase esticar os braços e desça até a altura das orelhas.",
+      "Costas coladas no encosto, sem arquear a lombar."
+    ],
+    "rosca-martelo-sentado": [
+      "Sentado com encosto, um halter em cada mão, palmas viradas uma para a outra.",
+      "Dobre os cotovelos subindo os halteres sem girar o punho, como quem segura um martelo.",
+      "Cotovelos parados junto ao corpo."
+    ],
+    "triceps-testa-halteres": [
+      "Deitado no banco reto, barra W nas mãos, braços esticados para o teto.",
+      "Dobre só os cotovelos, descendo a barra até perto da testa, e estique de volta.",
+      "Cotovelos apontando para o teto o tempo todo. Comece leve."
+    ],
+    "maquina-gluteo": [
+      "Siga a regulagem da máquina: uma perna de apoio e a outra no apoio que empurra.",
+      "Empurre a perna para trás, esticando o quadril, e volte devagar. Depois troque de lado.",
+      "Não arqueie a lombar para ganhar amplitude."
+    ],
+    "cadeira-adutora": [
+      "Sentado, pernas abertas, almofadas na parte de dentro dos joelhos.",
+      "Feche as pernas juntando as almofadas e volte devagar.",
+      "Abra só até onde for confortável."
+    ],
+    "abdominal-articulado": [
+      "Sentado na máquina, mãos nas pegadas ou peito no apoio, conforme o modelo.",
+      "Enrole o tronco para a frente contraindo a barriga e volte devagar.",
+      "Não puxe com os braços: quem faz força é a barriga."
+    ],
+    "pec-deck": [
+      "Banco na altura em que as pegadas fiquem na linha do peito.",
+      "Feche os braços à frente do peito, como num abraço, e volte devagar.",
+      "Não deixe os braços irem muito para trás na volta."
+    ],
+    "puxador-remada": [
+      "Sentado, pés apoiados, segurando a pegada do cabo.",
+      "Puxe em direção à barriga, com os cotovelos passando junto ao corpo.",
+      "Tronco parado, sem balançar para trás."
+    ],
+    "peck-deck-reverso": [
+      "No voador, sentado de frente para o encosto, pegadas na altura dos ombros.",
+      "Abra os braços para trás, quase esticados, e volte devagar.",
+      "Peso leve: quem trabalha é a parte de trás do ombro."
+    ],
+    "rosca-halteres-sentado": [
+      "Sentado no banco com encosto, um halter em cada mão, palmas para a frente.",
+      "Dobre os cotovelos subindo os halteres até os ombros e desça devagar.",
+      "Cotovelos parados ao lado do corpo."
+    ],
+    "triceps-corda": [
+      "Polia no alto com a corda, em pé perto do cabo.",
+      "Estique os braços para baixo e, no final, afaste as pontas da corda para os lados.",
+      "Cotovelos colados ao corpo."
+    ],
+    "flexora-deitada": [
+      "Deitado de barriga para baixo, joelho logo depois da beirada do banco, rolo acima do calcanhar.",
+      "Dobre os joelhos trazendo o rolo em direção ao bumbum e desça devagar.",
+      "Quadril colado no banco, sem levantar."
+    ],
+    "cadeira-abdutora": [
+      "Sentado, pernas fechadas, almofadas na parte de fora dos joelhos.",
+      "Abra as pernas para os lados e volte devagar.",
+      "Costas apoiadas, sem balançar o tronco."
+    ],
+    "supino-halteres-deitado": [
+      "Deitado no banco reto, um halter em cada mão na altura do peito.",
+      "Empurre os halteres para cima até quase esticar os braços e desça devagar.",
+      "Pés no chão e ombros para trás. Peça ajuda para pegar e soltar halter pesado."
+    ],
+    "pulley-supinado": [
+      "No pulley, pegada fechada, com as palmas viradas para você.",
+      "Puxe a barra até o queixo, com os cotovelos descendo junto ao corpo.",
+      "Sem jogar o corpo para trás."
+    ],
+    "elevacao-lateral-polia": [
+      "Polia no ponto mais baixo, em pé de lado para a máquina, pegada na mão mais longe.",
+      "Suba o braço para o lado até a altura do ombro e desça devagar. Depois troque de lado.",
+      "Peso leve e corpo parado."
+    ],
+    "rosca-polia-baixa": [
+      "Polia no ponto mais baixo com a barra reta, em pé perto do cabo.",
+      "Dobre os cotovelos subindo a barra até perto do peito e desça devagar.",
+      "Cotovelos parados junto ao corpo."
+    ],
+    "triceps-invertido-polia": [
+      "Polia no alto com a barra reta, pegada com as palmas viradas para cima.",
+      "Com os cotovelos colados ao corpo, estique os braços para baixo.",
+      "Use peso menor que o do tríceps na polia comum."
+    ],
+    "panturrilha-leg-press": [
+      "No leg press, só a ponta dos pés na beirada de baixo da plataforma, pernas quase esticadas.",
+      "Empurre a plataforma com a ponta dos pés e volte devagar até alongar.",
+      "Pés bem firmes. Peça ao instrutor para mostrar na primeira vez."
+    ],
+    "supino-inclinado-halteres": [
+      "Banco inclinado, um halter em cada mão na altura da parte de cima do peito.",
+      "Empurre para cima até quase esticar os braços e desça devagar.",
+      "Costas coladas no banco."
+    ],
+    "remada-unilateral-halter": [
+      "Um joelho e uma mão apoiados no banco, o halter na outra mão, costas retas.",
+      "Puxe o halter em direção ao quadril, cotovelo junto ao corpo, e desça devagar. Depois troque de lado.",
+      "Se apoiar o joelho incomodar, apoie só a mão e deixe os dois pés no chão."
+    ],
+    "rosca-concentrada": [
+      "Sentado na ponta do banco, pernas abertas, cotovelo apoiado na parte de dentro da coxa.",
+      "Suba o halter até o ombro e desça devagar até quase esticar. Depois troque de lado.",
+      "Só o antebraço se mexe."
+    ],
+    "triceps-coice": [
+      "Um joelho e uma mão apoiados no banco, halter na outra mão, braço colado ao corpo e cotovelo dobrado.",
+      "Estique o braço para trás e volte devagar. Depois troque de lado.",
+      "O cotovelo fica parado. Se apoiar o joelho incomodar, apoie só a mão."
+    ],
+    "crucifixo-cross": [
+      "Polias na altura dos ombros, uma pegada em cada mão, um passo à frente do meio.",
+      "Com os cotovelos levemente dobrados, junte as mãos à frente do peito e volte devagar.",
+      "Peso leve. Não deixe os braços irem muito para trás."
+    ],
+    "pullover-polia": [
+      "Polia no alto com a barra reta, em pé um passo atrás, tronco um pouco inclinado.",
+      "Com os braços quase esticados, leve a barra do alto até perto das coxas e volte devagar.",
+      "Os cotovelos não dobram: quem trabalha são as costas."
+    ],
+    "face-pull": [
+      "Polia na altura do rosto, com a corda.",
+      "Palmas para baixo, dê um passo para trás e puxe a corda em direção à testa, abrindo os cotovelos para os lados.",
+      "Peso leve. Quem trabalha é a parte de trás do ombro, não as costas."
+    ],
+    "rosca-inclinada": [
+      "Banco inclinado, costas apoiadas, braços pendurados com um halter em cada mão.",
+      "Dobre os cotovelos subindo os halteres e desça devagar até esticar.",
+      "Os braços ficam atrás do corpo: comece com menos peso que na rosca sentada."
+    ],
+    "triceps-acima-cabeca": [
+      "Polia baixa com a corda, de costas para a máquina, corda atrás da cabeça, um pé à frente.",
+      "Estique os braços para cima e para a frente e volte devagar.",
+      "Cotovelos apontando para a frente, sem abrir."
+    ]
+  },
   /* Sessões já treinadas. Começa vazio. */
   sessoes: [],
 
@@ -182,9 +521,10 @@ const DADOS_INICIAIS = {
    ============================================================= */
 
 const DADOS_ELIETE = {
-  /* Nasce ja na versao atual do app: as correcoes 2, 3 e 4 sao da
-     ficha dele, de antes dos perfis, e nao se aplicam a esta. */
-  versaoDosDados: 4,
+  /* Nasce ja na versao atual do app: as correcoes 2 a 5 sao da ficha
+     dele e nao se aplicam a esta. Quem ja usava fica na 4, e tanto faz:
+     nenhum passo de versao encosta no banco dela. */
+  versaoDosDados: 5,
 
   equipamentos: [],
 

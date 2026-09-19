@@ -52,6 +52,8 @@ const RAIZ_FOTO    = 'treino.foto.';        // uma chave por aparelho
    pessoa so: ela nasceu antes dos perfis existirem. Continua aqui
    como rede de seguranca. Ver guardarCopiaDeSeguranca. */
 const CHAVE_COPIA  = 'treino.copiaAntesDaFicha4';
+/* e a de antes dos dois blocos, de 18/09/2026 */
+const CHAVE_COPIA_5 = 'treino.copiaAntesDaFicha5';
 
 const VERSAO_DO_FORMATO = 3;   // 3 = formato com perfis
 
@@ -299,9 +301,14 @@ function completarComSementes() {
      histórico), abdominal curto e rosca com halteres sentado. Os que saíram
      continuam no catálogo, com o histórico intacto.
 
+     Versão 5 (18/09/2026): os dois blocos de seis treinos (A1, B1, C1 e
+     A2, B2, C2), nove exercícios cada. Os treinos A, B e C ficam arquivados:
+     fora da fila, mas guardados, porque o histórico mostra o nome deles.
+     Quem ainda estava antes da 4 pula direto para a 5.
+
      Esta é a única parte que reescreve a LISTA DO DIA. Ela roda uma vez só:
-     quando termina, versaoDosDados vira 4 e nunca mais volta aqui. */
-  if (fichaDele && versaoSalva < 4) {
+     quando termina, versaoDosDados vira 5 e nunca mais volta aqui. */
+  if (fichaDele && versaoSalva < 5) {
     if (mudou) salvarBanco();
     aplicarFichaNova();
     return;
@@ -319,11 +326,11 @@ let fichaPendente = false;
 /* Antes de reescrever a lista do dia, guarda uma cópia recuperável do
    banco inteiro numa chave separada. Só a primeira vez: se a cópia já
    existe, ela é a boa e não pode ser sobrescrita por uma mais nova. */
-function guardarCopiaDeSeguranca() {
+function guardarCopiaDeSeguranca(chave, motivo) {
   try {
-    if (localStorage.getItem(CHAVE_COPIA)) return;
-    localStorage.setItem(CHAVE_COPIA, JSON.stringify({
-      app: 'treino', motivo: 'antes da ficha de 11/09/2026',
+    if (localStorage.getItem(chave)) return;
+    localStorage.setItem(chave, JSON.stringify({
+      app: 'treino', motivo: motivo,
       salvoEm: new Date().toISOString(),               // Date [nativo]
       banco: banco
     }));
@@ -338,25 +345,43 @@ function aplicarFichaNova() {
   const emAndamento = lerSessaoSalva();
   if (emAndamento && sessaoTemRegistro(emAndamento)) { fichaPendente = true; return; }
 
-  guardarCopiaDeSeguranca();
+  guardarCopiaDeSeguranca(CHAVE_COPIA_5, 'antes dos dois blocos de 18/09/2026');
 
-  /* troca só a lista de exercícios de cada treino; nome e ordem ficam.
-     Sessões não são tocadas: o que você treinou está guardado dentro da
-     própria sessão e não depende desta lista para ser mostrado. */
+  /* Sessões não são tocadas: o que você treinou está guardado dentro da
+     própria sessão e não depende desta lista para ser mostrado.
+
+     Treino ARQUIVADO na semente só sai da fila: a lista dele fica como
+     estava, porque é a lista que ele de fato treinou. Os outros recebem a
+     lista, o nome, a ordem e o bloco da semente. */
   DADOS_INICIAIS.treinos.forEach(semente => {
     const meu = banco.treinos.find(t => t.id === semente.id);
-    if (meu) meu.itens = JSON.parse(JSON.stringify(semente.itens));
-    else banco.treinos.push(JSON.parse(JSON.stringify(semente)));
+    if (!meu) { banco.treinos.push(JSON.parse(JSON.stringify(semente))); return; }
+    meu.ordem = semente.ordem;
+    if (semente.arquivado) { meu.arquivado = true; return; }
+    meu.itens = JSON.parse(JSON.stringify(semente.itens));
+    meu.nome = semente.nome;
+    meu.bloco = semente.bloco;
+    delete meu.arquivado;
+  });
+
+  /* treino que a semente não conhece também sai da fila. Nada é apagado. */
+  banco.treinos.forEach(t => {
+    if (!DADOS_INICIAIS.treinos.find(s => s.id === t.id)) t.arquivado = true;
   });
 
   /* as orientações do exercício (leg press, extensora) pertencem ao app,
-     como as ilustrações: seguem as sementes. */
+     e as ilustrações também: seguem as sementes. É o que troca o desenho
+     do tríceps na polia da corda para a barra reta (19/09/2026), já que a
+     corda ganhou exercício próprio. Desenho que VOCÊ escolheu pela tela
+     "Trocar desenho" nunca é trocado. */
   DADOS_INICIAIS.exercicios.forEach(semente => {
     const meu = banco.exercicios.find(e => e.id === semente.id);
-    if (meu) meu.instrucoes = semente.instrucoes;
+    if (!meu) return;
+    meu.instrucoes = semente.instrucoes;
+    if (!meu.ilustracaoEscolhida) meu.ilustracao = semente.ilustracao;
   });
 
-  banco.versaoDosDados = 4;
+  banco.versaoDosDados = 5;
   salvarBanco();
 }
 
@@ -435,6 +460,11 @@ function limparTelaAoTrocar() {
   sessaoApagada = null;
   caminhadaApagada = null;
   nomeDigitado = '';
+  videoAberto = null;
+  editandoVideo = null;
+  linkDigitado = '';
+  escolhendoDesenho = null;
+  desenhoAnterior = null;
   backupParaRestaurar = null;
   estadoAntesDaRestauracao = null;
   Object.keys(cacheDeFotos).forEach(k => delete cacheDeFotos[k]);
@@ -488,6 +518,11 @@ let edicao = null;                  // { treinoId, escolhendo } quando editando 
 let sessaoApagada = null;           // guardada na memória para o Desfazer
 let nomeDigitado = '';              // nome do exercício novo, enquanto é escrito
 let graficoModo = 'carga';          // o gráfico do histórico: 'carga' ou 'volume'
+let videoAberto = null;             // id do exercício com o vídeo tocando no cartão
+let editandoVideo = null;           // id do exercício com o campo de link aberto
+let linkDigitado = '';              // link do vídeo, enquanto é colado
+let escolhendoDesenho = null;       // id do exercício na tela "Trocar desenho"
+let desenhoAnterior = null;         // o desenho de antes, para o Desfazer
 let backupParaRestaurar = null;     // arquivo lido, esperando confirmação
 let estadoAntesDaRestauracao = null; // retrato para o Desfazer da restauração
 let cron = null;           // cronômetro de descanso
@@ -562,8 +597,61 @@ function esc(texto) {
 
 /* Qual treino vem agora: o seguinte na fila depois do último CONCLUÍDO.
    Treino encerrado como incompleto não mexe na fila. */
+/* Os treinos que entram na fila, na ordem. Arquivado fica de fora: ele
+   só existe para o histórico ainda saber o nome dele. */
+function treinosAtivos() {
+  return banco.treinos.filter(t => !t.arquivado).sort((a, b) => a.ordem - b.ordem);
+}
+
+/* Em que bloco a fila está, e quantos treinos dele já foram concluídos.
+   Não existe contador guardado: tudo sai das sessões concluídas. Assim
+   apagar um treino ou desfazer a exclusão acerta a conta sozinho.
+
+   Conta os concluídos SEGUIDOS do mesmo bloco, a partir do mais recente.
+   Chegou a VEZES_POR_BLOCO voltas (seis treinos, com três no bloco), o
+   bloco acabou e a fila passa para o próximo. Treino incompleto não conta. */
+const VEZES_POR_BLOCO = 2;
+
+function estadoDoBloco() {
+  const ativos = treinosAtivos().filter(t => t.bloco);
+  if (!ativos.length) return null;
+  const blocos = [];
+  ativos.forEach(t => { if (blocos.indexOf(t.bloco) < 0) blocos.push(t.bloco); });
+  blocos.sort((a, b) => a - b);
+
+  const blocoDe = id => { const t = ativos.find(a => a.id === id); return t ? t.bloco : null; };
+  const totalDo = b => ativos.filter(t => t.bloco === b).length * VEZES_POR_BLOCO;
+  const feitas = banco.sessoes
+    .filter(s => s.estado === 'concluida' && blocoDe(s.treinoId))
+    .sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));  // sort [nativo] mantém empates na ordem
+
+  if (!feitas.length) return { bloco: blocos[0], feitos: 0, ultimoId: null, total: totalDo(blocos[0]) };
+
+  const ultima = feitas[feitas.length - 1];
+  const bloco = blocoDe(ultima.treinoId);
+  let seguidos = 0;
+  for (let k = feitas.length - 1; k >= 0 && blocoDe(feitas[k].treinoId) === bloco; k--) seguidos++;
+
+  if (seguidos >= totalDo(bloco)) {
+    const seguinte = blocos[(blocos.indexOf(bloco) + 1) % blocos.length];
+    return { bloco: seguinte, feitos: 0, ultimoId: null, total: totalDo(seguinte) };
+  }
+  return { bloco: bloco, feitos: seguidos, ultimoId: ultima.treinoId, total: totalDo(bloco) };
+}
+
 function proximoTreinoId() {
-  const ordenados = banco.treinos.slice().sort((a, b) => a.ordem - b.ordem);
+  const ordenados = treinosAtivos();
+
+  /* ficha com blocos: anda dentro do bloco da vez */
+  const estado = estadoDoBloco();
+  if (estado) {
+    const doBloco = ordenados.filter(t => t.bloco === estado.bloco);
+    if (!estado.ultimoId) return doBloco[0].id;
+    const i = doBloco.findIndex(t => t.id === estado.ultimoId);
+    return doBloco[(i + 1) % doBloco.length].id;
+  }
+
+  /* ficha sem blocos (a da Eliete): A > B > C e volta */
   const ultimo = banco.config.ultimoTreinoConcluido;
   if (!ultimo) return ordenados[0].id;
   const i = ordenados.findIndex(t => t.id === ultimo);
@@ -1547,6 +1635,97 @@ function apagarSessao(sessaoId) {
   mostrarFaixa('Treino apagado', true);
 }
 
+/* ---------- vídeo do exercício ----------
+   O YouTube só deixa tocar dentro de outro site um vídeo ESCOLHIDO, nunca
+   uma busca. Então quem escolhe é você: a busca abre fora do app, e o
+   link colado aqui passa a tocar dentro do cartão. O que fica guardado é
+   só o código de 11 letras do vídeo, dentro do exercício, e por isso ele
+   vai junto no backup. */
+function idDoYoutube(texto) {
+  const limpo = (texto || '').trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(limpo)) return limpo;       // test [nativo]
+  const achado = limpo.match(                                  // match [nativo]
+    /(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\/(?:.*[?&]v=|shorts\/|embed\/|live\/)?([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/);
+  return achado ? achado[1] : null;
+}
+
+function guardarVideo(exercicioId) {
+  const id = idDoYoutube(linkDigitado);
+  if (!id) {
+    mostrarFaixa('Esse link não parece ser de um vídeo do YouTube.', false);
+    return;
+  }
+  acharExercicio(exercicioId).video = id;
+  salvarBanco();
+  editandoVideo = null;
+  linkDigitado = '';
+  videoAberto = exercicioId;
+  desenhar();
+  mostrarFaixa('Vídeo guardado', false);
+}
+
+function tirarVideo(exercicioId) {
+  delete acharExercicio(exercicioId).video;
+  salvarBanco();
+  editandoVideo = null;
+  videoAberto = null;
+  linkDigitado = '';
+  desenhar();
+  mostrarFaixa('Vídeo tirado do exercício', false);
+}
+
+/* ---------- trocar o desenho do exercício ----------
+   A coleção mora em colecao.js, e a tela mostra só os desenhos do
+   mesmo grupo do exercício. Escolher um desenho muda só o
+   que aparece no cartão; o histórico fica onde está, colado no id.
+   ilustracaoEscolhida marca que foi você quem escolheu: daí em diante
+   nenhuma atualização do app troca esse desenho por conta própria. */
+function abrirEscolhaDeDesenho(exercicioId) {
+  escolhendoDesenho = exercicioId;
+  abrirPainel('desenho');
+}
+
+function escolherDesenho(arquivo) {
+  const exercicio = acharExercicio(escolhendoDesenho);
+  if (!exercicio) { fecharHistorico(); return; }
+  desenhoAnterior = {
+    exercicioId: exercicio.id,
+    ilustracao: exercicio.ilustracao,
+    escolhida: !!exercicio.ilustracaoEscolhida
+  };
+  exercicio.ilustracao = arquivo;
+  exercicio.ilustracaoEscolhida = true;
+  salvarBanco();
+  escolhendoDesenho = null;
+  ultimaAcao = { tipo: 'desenho' };
+  fecharHistorico();
+  mostrarFaixa('Desenho trocado', true);
+}
+
+/* O grupo sai do nome, lido sem acento e em minúsculas: "Tríceps corda
+   na polia" vira " triceps corda na polia ", que tem "triceps". Os
+   grupos e a ordem deles moram no colecao.js. "Peck" vira "pec" porque
+   o nome do exercício e o do desenho escrevem de jeitos diferentes. */
+function textoSemAcento(texto) {
+  return ' ' + String(texto).normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/peck/g, 'pec').replace(/[^a-z0-9]+/g, ' ') + ' ';
+}
+
+function grupoDoNome(nome) {
+  const texto = textoSemAcento(nome);
+  const achado = GRUPOS_DE_DESENHO.find(g => g.palavras.some(p => texto.indexOf(p) >= 0));
+  return achado ? achado.grupo : null;
+}
+
+/* Os desenhos da coleção do mesmo grupo do exercício, em ordem
+   alfabética. Nome sem grupo: lista vazia, e o botão nem aparece. */
+function desenhosParecidos(exercicio) {
+  const grupo = grupoDoNome(exercicio.nome);
+  if (!grupo) return [];
+  return COLECAO_DE_DESENHOS.filter(d => grupoDoNome(d.nome) === grupo)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt'));   // localeCompare [nativo]
+}
+
 function abrirCartao(i) {
   sessao.itemAberto = (sessao.itemAberto === i) ? -1 : i;
   editandoCarga = null;
@@ -1557,7 +1736,7 @@ function abrirCartao(i) {
 
 /* Trocar de treino. Se já tem coisa registrada, pergunta na tela. */
 function pedirTrocaDeTreino() {
-  const ordenados = banco.treinos.slice().sort((a, b) => a.ordem - b.ordem);
+  const ordenados = treinosAtivos();
   const i = ordenados.findIndex(t => t.id === sessao.treinoId);
   const novo = ordenados[(i + 1) % ordenados.length];
   if (!sessaoTemRegistro(sessao)) return trocarTreino(novo.id);
@@ -1589,14 +1768,22 @@ function arquivarSessao(estado) {
   if (estado === 'concluida') banco.config.ultimoTreinoConcluido = sessao.treinoId;
   salvarBanco();
   apagarSessaoSalva();
-  const nome = acharTreino(sessao.treinoId).nome;
+  const treino = acharTreino(sessao.treinoId);
+  const nome = treino.nome;
   aplicarFichaPendente();   // a ficha nova, se estava esperando o fim do treino
   sessao = criarSessao(proximoTreinoId());
   confirmando = null;
   perguntarSobrePendente = false;
   pararDescanso();
   desenhar();
-  mostrarFaixa(nome + (estado === 'concluida' ? ' concluído' : ' guardado como incompleto'), false);
+
+  /* o bloco virou com este treino? */
+  const agora = estadoDoBloco();
+  const virou = estado === 'concluida' && treino.bloco && !treino.arquivado &&
+                agora && agora.feitos === 0;
+  mostrarFaixa(virou
+    ? nome + ' concluído. Fim do Bloco ' + treino.bloco + ': agora vem o Bloco ' + agora.bloco + '.'
+    : nome + (estado === 'concluida' ? ' concluído' : ' guardado como incompleto'), false);
 }
 
 function pedirConclusaoDoTreino() {
@@ -1939,6 +2126,21 @@ function desfazer() {
     return;
   }
 
+  /* devolver o desenho que o exercício tinha antes */
+  if (ultimaAcao.tipo === 'desenho') {
+    const exercicio = desenhoAnterior && acharExercicio(desenhoAnterior.exercicioId);
+    if (exercicio) {
+      exercicio.ilustracao = desenhoAnterior.ilustracao;
+      if (desenhoAnterior.escolhida) exercicio.ilustracaoEscolhida = true;
+      else delete exercicio.ilustracaoEscolhida;
+      salvarBanco();
+    }
+    desenhoAnterior = null;
+    esconderFaixa();
+    desenhar();
+    return;
+  }
+
   /* caminhadas */
   if (ultimaAcao.tipo === 'caminhada') {
     banco.caminhadas.pop();
@@ -2096,6 +2298,7 @@ function desenhar() {
       '<h1>' + esc(treino.nome.toUpperCase()) + '</h1>' +
       '<div class="hoje">HOJE</div>' +
     '</div>' +
+    linhaDoBloco(treino) +
     '<div class="linha-progresso">' +
       '<span>' + feitos + ' de ' + sessao.itens.length + ' exercícios</span>' +
       '<span class="botoes-cabecalho">' +
@@ -2152,6 +2355,17 @@ function desenhar() {
   }
 }
 
+/* "Bloco 1 · treino 2 de 6", logo abaixo do nome do treino. Se ele trocou
+   na mão para um treino do outro bloco, mostra só o bloco. */
+function linhaDoBloco(treino) {
+  if (!treino.bloco || treino.arquivado) return '';
+  const estado = estadoDoBloco();
+  const texto = (estado && estado.bloco === treino.bloco)
+    ? 'Bloco ' + treino.bloco + ' · treino ' + (estado.feitos + 1) + ' de ' + estado.total
+    : 'Bloco ' + treino.bloco;
+  return '<div class="linha-bloco">' + texto + '</div>';
+}
+
 /* Recados fixos do topo da tela: problema com os dados salvos, fase
    informada e o convite para revisar a ficha. Nenhum deles tira você
    do treino: são faixas, não pop up. */
@@ -2206,6 +2420,7 @@ function desenharPainel() {
   if (painelAberto === 'caminhadas') { caixa.classList.remove('oculto'); caixa.innerHTML = desenharCaminhadas(); return; }
   if (painelAberto === 'resumo')     { caixa.classList.remove('oculto'); caixa.innerHTML = desenharResumo(); return; }
   if (painelAberto === 'plano')      { caixa.classList.remove('oculto'); caixa.innerHTML = desenharPlano(); return; }
+  if (painelAberto === 'desenho')    { caixa.classList.remove('oculto'); caixa.innerHTML = desenharEscolhaDeDesenho(); return; }
 
   if (!historicoAberto) { caixa.classList.add('oculto'); return; }
 
@@ -2541,7 +2756,7 @@ function desenharEdicao() {
   /* escolhendo um exercício para entrar ou substituir */
   if (edicao.escolhendo) return desenharEscolhaDeExercicio();
 
-  const abas = banco.treinos.slice().sort((a, b) => a.ordem - b.ordem).map(t =>
+  const abas = treinosAtivos().map(t =>
     '<button class="btn-pequeno' + (t.id === edicao.treinoId ? ' btn-destaque' : '') +
     '" data-acao="editar-treino" data-id="' + t.id + '">' + esc(t.nome) + '</button>'
   ).join('');
@@ -2616,6 +2831,36 @@ function desenharEscolhaDeExercicio() {
         '<button class="btn-largo btn-marrom" data-acao="criar-exercicio">Criar e usar</button>' +
       '</div>' +
       '<div class="rotulo">Ou escolher um que ja existe</div>' + lista +
+    '</div>';
+}
+
+/* Tela "Trocar desenho": só os desenhos parecidos com o exercício,
+   em duas colunas. As imagens só carregam quando chegam perto da vista
+   (loading="lazy"), o que ajuda nos grupos maiores, como o das roscas. */
+function desenharEscolhaDeDesenho() {
+  const exercicio = acharExercicio(escolhendoDesenho);
+  if (!exercicio) return '';
+  const atual = exercicio.ilustracao;
+
+  const grade = desenhosParecidos(exercicio)
+    .map(d => '<button class="desenho-opcao' + (d.arquivo === atual ? ' escolhido' : '') + '"' +
+        ' data-acao="escolher-desenho" data-arquivo="' + esc(d.arquivo) + '">' +
+        '<img src="' + esc(d.arquivo) + '" alt="" loading="lazy" decoding="async">' +
+        '<span>' + esc(d.nome) + (d.arquivo === atual ? ' <b>(atual)</b>' : '') + '</span>' +
+      '</button>')
+    .join('');
+
+  return '<div class="topo-painel">' +
+      '<div><h2>Trocar desenho</h2>' +
+      '<div class="resumo-painel">' + esc(exercicio.nome) + '</div></div>' +
+      '<button class="btn-destaque" data-acao="fechar-historico">Fechar</button>' +
+    '</div>' +
+    '<div class="lista-painel">' +
+      (atual
+        ? '<div class="desenho-de-agora"><img src="' + esc(atual) + '" alt="">' +
+          '<span>Desenho de agora. Toque em outro para trocar; o histórico não muda.</span></div>'
+        : '<div class="aviso-troca">Este exercício ainda não tem desenho. Toque em um para usar.</div>') +
+      '<div class="grade-desenhos">' + grade + '</div>' +
     '</div>';
 }
 
@@ -2697,6 +2942,70 @@ function desenharAviso() {
     '</div></div>';
 }
 
+/* As três linhas de "como fazer". O texto mora na semente e é lido de
+   lá, então não existe cópia velha no celular para ficar desatualizada. */
+const ETAPAS = ['Ajuste', 'Movimento', 'Cuidado'];
+
+function desenharComoFazer(exercicio) {
+  const semente = sementeDoPerfil(perfilId);
+  const linhas = semente && semente.comoFazer && semente.comoFazer[exercicio.id];
+  if (!linhas) return '';
+  return '<div class="como-fazer"><div class="rotulo">Como fazer</div>' +
+    linhas.map((texto, n) =>
+      '<p><b>' + (ETAPAS[n] || '') + ':</b> ' + esc(texto) + '</p>').join('') +
+    '</div>';
+}
+
+/* Sem vídeo: botão que abre a busca no YouTube e campo para colar o link.
+   Com vídeo: botão que toca ele ali mesmo, dentro do cartão. */
+function desenharVideo(exercicio) {
+  const id = exercicio.video;
+  const nomeDaBusca = exercicio.nome.replace(/\s*\(.*?\)\s*/g, ' ').trim() + ' como fazer';
+  const busca = 'https://www.youtube.com/results?search_query=' +
+    encodeURIComponent(nomeDaBusca);                            // encodeURIComponent [nativo]
+  const linkDeBusca = '<a class="btn-pequeno" href="' + busca +
+    '" target="_blank" rel="noopener">Procurar no YouTube</a>';
+
+  /* colando um link, o primeiro ou um no lugar do que já existe */
+  if (!id || editandoVideo === exercicio.id) {
+    return '<div class="bloco-video"><div class="rotulo">Vídeo</div>' +
+      '<div class="extra-cinza">Procure um vídeo que explique bem, copie o link e cole aqui. ' +
+        'Daí em diante ele toca dentro do app.</div>' +
+      '<div class="fileira-video">' + linkDeBusca + '</div>' +
+      '<input type="url" class="campo-link" data-campo="link-video" ' +
+        'data-id="' + esc(exercicio.id) + '" value="' + esc(linkDigitado) + '" ' +
+        'placeholder="Cole aqui o link do vídeo" inputmode="url" autocomplete="off">' +
+      '<div class="fileira-video">' +
+        '<button class="btn-pequeno btn-marrom" data-acao="guardar-video" data-id="' +
+          esc(exercicio.id) + '">Guardar vídeo</button>' +
+        (id
+          ? '<button class="btn-pequeno" data-acao="cancelar-video">Cancelar</button>' +
+            '<button class="btn-pequeno btn-perigo" data-acao="tirar-video" data-id="' +
+              esc(exercicio.id) + '">Tirar o vídeo</button>'
+          : '') +
+      '</div></div>';
+  }
+
+  if (videoAberto !== exercicio.id) {
+    return '<div class="bloco-video">' +
+      '<button class="btn-largo btn-marrom" data-acao="ver-video" data-id="' +
+        esc(exercicio.id) + '">&#9654; Ver vídeo</button></div>';
+  }
+
+  /* youtube-nocookie: o mesmo player, sem o YouTube guardar rastro de quem assiste */
+  return '<div class="bloco-video">' +
+    '<div class="moldura-video"><iframe src="https://www.youtube-nocookie.com/embed/' + esc(id) +
+      '?rel=0&playsinline=1" title="' + esc(exercicio.nome) + '" ' +
+      'allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" ' +
+      'allowfullscreen></iframe></div>' +
+    '<div class="extra-cinza">Precisa de internet. Tocar em outra coisa na tela faz o vídeo parar.</div>' +
+    '<div class="fileira-video">' +
+      '<button class="btn-pequeno" data-acao="fechar-video">Fechar vídeo</button>' +
+      '<button class="btn-pequeno" data-acao="trocar-video" data-id="' + esc(exercicio.id) +
+        '">Trocar vídeo</button>' +
+    '</div></div>';
+}
+
 function desenharCartao(itemDoTreino, i) {
   const item = sessao.itens[i];
   const exercicio = acharExercicio(item.exercicioId);
@@ -2743,11 +3052,17 @@ function desenharCartao(itemDoTreino, i) {
   } else {
     html += '<div class="foto sem-desenho"><span>' + esc(exercicio.nome) + '</span></div>';
   }
+  if (desenhosParecidos(exercicio).length) {
+    html += '<button class="btn-vinculo trocar-desenho" data-acao="abrir-desenhos" data-id="' + exercicio.id + '">' +
+      (exercicio.ilustracao ? 'Trocar desenho' : 'Escolher desenho') + '</button>';
+  }
 
   /* orientação do exercício, quando existe (leg press, extensora) */
   if (exercicio.instrucoes) {
     html += '<div class="instrucoes">' + esc(exercicio.instrucoes) + '</div>';
   }
+
+  html += desenharComoFazer(exercicio) + desenharVideo(exercicio);
 
   /* qual aparelho é este, de verdade. Cada variante tem histórico
      próprio: escolher não reescreve o que já foi feito na outra. */
@@ -2779,7 +3094,10 @@ function desenharCartao(itemDoTreino, i) {
       (rir !== null ? ' · RIR ' + rir : '') + '</div>' +
       '<div class="ver-tudo">ver tudo</div></div>';
   } else {
-    html += '<div class="ultima-vez">Primeira vez neste exercício.</div>';
+    /* some sozinho depois do primeiro registro, porque aí já existe
+       "última vez" para mostrar no lugar */
+    html += '<div class="ultima-vez primeira-vez">Primeira vez neste exercício. ' +
+      '<b>Comece leve e peça ao instrutor para conferir a postura.</b></div>';
   }
 
   /* sugestão de progressão */
@@ -3043,6 +3361,14 @@ document.addEventListener('click', function (evento) {
     case 'backup-tudo':        exportarBackup(true); break;
 
     case 'abrir-cartao':       abrirCartao(i); break;
+    case 'ver-video':          videoAberto = alvo.dataset.id; desenhar(); break;
+    case 'fechar-video':       videoAberto = null; desenhar(); break;
+    case 'trocar-video':       editandoVideo = alvo.dataset.id; linkDigitado = ''; videoAberto = null; desenhar(); break;
+    case 'cancelar-video':     editandoVideo = null; linkDigitado = ''; desenhar(); break;
+    case 'guardar-video':      guardarVideo(alvo.dataset.id); break;
+    case 'tirar-video':        tirarVideo(alvo.dataset.id); break;
+    case 'abrir-desenhos':     abrirEscolhaDeDesenho(alvo.dataset.id); break;
+    case 'escolher-desenho':   escolherDesenho(alvo.dataset.arquivo); break;
     case 'ver-historico':      abrirHistorico(alvo.dataset.id); break;
     case 'grafico-carga':      graficoModo = 'carga'; desenhar(); break;
     case 'grafico-volume':     graficoModo = 'volume'; desenhar(); break;
@@ -3115,6 +3441,8 @@ document.addEventListener('input', function (evento) {
     salvarSessao();
   } else if (campo === 'novo-exercicio') {
     nomeDigitado = alvo.value;
+  } else if (campo === 'link-video') {
+    linkDigitado = alvo.value;
   } else if (campo === 'minutos') {
     minutosDigitados = alvo.value;
   } else if (campo === 'obs-caminhada') {
@@ -3130,11 +3458,15 @@ document.addEventListener('input', function (evento) {
   }
 });
 
-/* Enter no campo de carga vale como OK. */
+/* Enter no campo de carga vale como OK, e no do link como Guardar. */
 document.addEventListener('keydown', function (evento) {
-  if (evento.key === 'Enter' && evento.target.dataset && evento.target.dataset.campo === 'carga') {
+  const campo = evento.target.dataset && evento.target.dataset.campo;
+  if (evento.key === 'Enter' && campo === 'carga') {
     evento.preventDefault();
     fecharCampoDeCarga();
+  } else if (evento.key === 'Enter' && campo === 'link-video') {
+    evento.preventDefault();
+    guardarVideo(evento.target.dataset.id);
   }
 });
 

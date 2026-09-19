@@ -40,6 +40,7 @@ const ctx = {
 ctx.globalThis = ctx;
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path + 'dados-iniciais.js', 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path + 'colecao.js', 'utf8'), ctx);
 vm.runInContext(fs.readFileSync(path + 'app.js', 'utf8'), ctx);
 
 const rodar = codigo => vm.runInContext(codigo, ctx);
@@ -64,10 +65,10 @@ confere('faixa 12 a 20 (de dois em dois)', rodar('opcoesDeReps(12,20)'), [12, 14
 confere('grade ampliada 8 a 12', rodar('opcoesAmpliadas(8,12)'), [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]);
 
 console.log('\n--- fila A > B > C ---');
-confere('sem histórico começa no A', rodar('proximoTreinoId()'), 'treino-a');
+confere('sem histórico começa no A', rodar('proximoTreinoId()'), 'treino-a1');
 
 console.log('\n--- primeira série sem carga abre o campo, não um pop up ---');
-rodar("sessao = criarSessao('treino-a'); registrarSerie(0, 12);");
+rodar("sessao = criarSessao('treino-a1'); registrarSerie(0, 12);");
 confere('nada foi registrado ainda', rodar('sessao.itens[0].series.length'), 0);
 confere('campo de carga abriu no exercício 1', rodar('editandoCarga'), 0);
 confere('a repetição ficou guardada esperando', rodar('serieEsperandoCarga'), { i: 0, reps: 12 });
@@ -103,17 +104,17 @@ confere('cancelar fecha a pergunta', rodar('confirmando'), null);
 
 console.log('\n--- encerrar como incompleta NÃO empurra a fila ---');
 rodar("arquivarSessao('incompleta')");
-confere('fila continua no A', rodar('proximoTreinoId()'), 'treino-a');
+confere('fila continua no A', rodar('proximoTreinoId()'), 'treino-a1');
 confere('sessão pendente foi limpa', rodar("localStorage.getItem('treino.sessaoAtual.jhone')"), null);
 
 console.log('\n--- concluir empurra a fila para o B ---');
-rodar("sessao = criarSessao('treino-a'); sessao.itens[0].cargaAtualKg = 30; registrarSerie(0, 12);");
+rodar("sessao = criarSessao('treino-a1'); sessao.itens[0].cargaAtualKg = 30; registrarSerie(0, 12);");
 rodar('pedirConclusaoDoTreino(); executarConfirmacao();');
-confere('agora vem o B', rodar('proximoTreinoId()'), 'treino-b');
-confere('sessão nova já é do B', rodar('sessao.treinoId'), 'treino-b');
+confere('agora vem o B', rodar('proximoTreinoId()'), 'treino-b1');
+confere('sessão nova já é do B', rodar('sessao.treinoId'), 'treino-b1');
 
 console.log('\n--- foto guardada (sem botao de tirar) ---');
-rodar("sessao = criarSessao('treino-a');");
+rodar("sessao = criarSessao('treino-a1');");
 confere('nao existe mais funcao de tirar foto', rodar('typeof pedirFoto'), 'undefined');
 confere('nem de receber o arquivo da camera', rodar('typeof receberFoto'), 'undefined');
 rodar("salvarFoto('eq-supino-sentado', 'data:image/jpeg;base64,FOTO');");
@@ -153,14 +154,14 @@ confere('nenhum desenho foi emprestado de outro exercicio',
 console.log('\n--- progressao: caminho normal (duas sessoes) ---');
 function historico(lista) { rodar('banco.sessoes = ' + JSON.stringify(lista) + ';'); }
 const topo = (data, carga, rir, nivel) => ({
-  data, treinoId: 'treino-a', estado: 'concluida',
+  data, treinoId: 'treino-a1', estado: 'concluida',
   itens: [{
     exercicioId: 'supino-sentado',
     series: [{ cargaKg: carga, reps: 12 }, { cargaKg: carga, reps: 12, rir: rir }],
     desconforto: { nivel: nivel || null, regioes: [] }, observacao: '', concluido: true
   }]
 });
-const itemA = "acharTreino('treino-a').itens[1]";
+const itemA = "acharTreino('treino-a1').itens[1]";
 const sugestao = () => rodar('sugestaoDeCarga(' + itemA + ')');
 
 historico([]);
@@ -194,7 +195,7 @@ confere('com desconforto forte nao sugere nada', sugestao(), null);
 
 console.log('--- o salto que nao pegou (voltar carga) ---');
 const sessaoReps = (data, carga, reps, rir, nivel) => ({
-  data, treinoId: 'treino-a', estado: 'concluida',
+  data, treinoId: 'treino-a1', estado: 'concluida',
   itens: [{
     exercicioId: 'supino-sentado',
     series: [{ cargaKg: carga, reps: reps }, { cargaKg: carga, reps: reps, rir: rir }],
@@ -216,13 +217,13 @@ historico([sessaoReps('2026-09-03', 32, 6, 1)]);
 confere('uma sessao so: nao manda voltar', sugestao(), null);
 historico([sessaoReps('2026-09-01', 30, 12, 2), sessaoReps('2026-09-03', 28, 6, 1)]);
 confere('carga desceu: nao manda voltar de novo', sugestao(), null);
-const faltou = { data: '2026-09-03', treinoId: 'treino-a', estado: 'concluida', itens: [{
+const faltou = { data: '2026-09-03', treinoId: 'treino-a1', estado: 'concluida', itens: [{
   exercicioId: 'supino-sentado',
   series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 5 }],
   desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] };
 historico([faltou]);
 confere('RIR alto mas faltou repeticao: nao sugere', sugestao(), null);
-const meio = { data: '2026-09-03', treinoId: 'treino-a', estado: 'concluida', itens: [{
+const meio = { data: '2026-09-03', treinoId: 'treino-a1', estado: 'concluida', itens: [{
   exercicioId: 'supino-sentado',
   series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 2 }],
   desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] };
@@ -232,14 +233,28 @@ confere('faltou uma repeticao: nao sugere', sugestao(), null);
 
 console.log('\n--- carga herdada da última vez ---');
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
-rodar("sessao = criarSessao('treino-a');");
+rodar("sessao = criarSessao('treino-a1');");
 confere('supino já abre com 30 kg', rodar('sessao.itens[1].cargaAtualKg'), 30);
 confere('exercício sem histórico abre vazio', rodar('sessao.itens[2].cargaAtualKg'), null);
-confere('abdominal curto não usa carga', rodar("criarSessao('treino-b').itens[6].cargaAtualKg"), null);
+confere('abdominal curto não usa carga', rodar("criarSessao('treino-a1').itens[8].cargaAtualKg"), null);
 
 console.log('\n--- ilustrações que vieram com o app ---');
 const semIlustracao = rodar('banco.exercicios.filter(e => !e.ilustracao).map(e => e.id)');
-confere('todo exercício tem desenho próprio, os três novos inclusive', semIlustracao, []);
+/* os exercícios que entraram em 18/09 (eram 23; o desenvolvimento com
+   halteres saiu em 19/09, porque é o mesmo do B1). Os desenhos chegaram
+   em 19/09: nenhum exercício da ficha dele ficou sem desenho */
+const novosDe18 = ['peck-deck-reverso', 'rosca-martelo-sentado', 'triceps-testa-halteres',
+  'triceps-corda', 'flexora-deitada', 'maquina-gluteo', 'cadeira-adutora', 'abdominal-articulado',
+  'supino-halteres-deitado', 'supino-inclinado-halteres', 'crucifixo-cross', 'pulley-supinado',
+  'remada-unilateral-halter', 'pullover-polia', 'elevacao-lateral-polia',
+  'face-pull', 'rosca-polia-baixa', 'rosca-concentrada', 'rosca-inclinada', 'triceps-invertido-polia',
+  'triceps-coice', 'triceps-acima-cabeca'];
+confere('nenhum exercício está sem desenho', semIlustracao, []);
+confere('os 22 desenhos de 19/09 chegaram', rodar(JSON.stringify(novosDe18) +
+  ".filter(id => acharExercicio(id).ilustracao !== 'imagens/' + id + '.webp')"), []);
+confere('a abdutora e a panturrilha no leg press já vieram com desenho',
+  rodar("[acharExercicio('cadeira-abdutora').ilustracao, acharExercicio('panturrilha-leg-press').ilustracao]"),
+  ['imagens/cadeira-abdutora.webp', 'imagens/panturrilha-leg-press.webp']);
 const faltando = rodar('banco.exercicios.map(e => e.ilustracao).filter(Boolean)')
   .filter(rel => !fs.existsSync(path + rel));
 confere('todo arquivo de imagem existe na pasta', faltando, []);
@@ -274,7 +289,7 @@ rodar("acharExercicio('remada').nome = 'Remada do jeito que eu chamo'; completar
 confere('o nome escolhido por voce ficou',
   rodar("acharExercicio('remada').nome"), 'Remada do jeito que eu chamo');
 rodar("acharExercicio('remada').nome = 'Remada';");
-rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; ajustarCarga(1, +1);");
+rodar("sessao = criarSessao('treino-a1'); sessao.itens[1].cargaAtualKg = 30; ajustarCarga(1, +1);");
 confere('mais um toque no + vai para 32', rodar('sessao.itens[1].cargaAtualKg'), 32);
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
 confere('a sugestão do supino é 32, não 31', rodar('sugestaoDeCarga(' + itemA + ')'), { carga: 32, motivo: 'normal' });
@@ -286,7 +301,7 @@ rodar("banco.versaoDosDados = 1;" +
       "completarComSementes();");
 confere('corrigiu o supino sentado', passoDe('supino-sentado'), 2);
 confere('corrigiu o pulley', passoDe('puxada-alta'), 1);
-confere('a versão dos dados subiu para 4', rodar('banco.versaoDosDados'), 4);
+confere('a versão dos dados subiu para 5', rodar('banco.versaoDosDados'), 5);
 
 /* o caso de verdade: o celular dele parou na versão 2, com 1 kg em tudo */
 rodar("banco.versaoDosDados = 2;" +
@@ -294,7 +309,7 @@ rodar("banco.versaoDosDados = 2;" +
       "completarComSementes();");
 confere('quem estava na versão 2 também recebe o salto de 2', passoDe('supino-sentado'), 2);
 confere('e o aparelho de barra continua em 1', passoDe('puxada-alta'), 1);
-confere('e chega na versão 4', rodar('banco.versaoDosDados'), 4);
+confere('e chega na versão 5', rodar('banco.versaoDosDados'), 5);
 confere('o histórico continuou lá', rodar('banco.sessoes.length'), 2);
 
 console.log('\n--- arquivos que o app guarda para usar sem internet ---');
@@ -321,8 +336,8 @@ const backupFalso = {
   sessaoAtual: null,
   fotos: { 'eq-remada': 'data:image/jpeg;base64,DOBACKUP' }
 };
-backupFalso.banco.sessoes = [{ data: '2026-08-20', treinoId: 'treino-c', estado: 'concluida', itens: [] }];
-backupFalso.banco.config.ultimoTreinoConcluido = 'treino-c';
+backupFalso.banco.sessoes = [{ data: '2026-08-20', treinoId: 'treino-c1', estado: 'concluida', itens: [] }];
+backupFalso.banco.config.ultimoTreinoConcluido = 'treino-c1';
 confere('backup de verdade: aceita',
   rodar('conferirBackup(' + JSON.stringify(JSON.stringify(backupFalso)) + ') !== null'), true);
 
@@ -335,7 +350,7 @@ rodar("salvarFoto('eq-panturrilha','data:image/jpeg;base64,DEAGORA');");
 const sessoesAntes = rodar('banco.sessoes.length');
 rodar("restaurarBackup('jhone');");
 confere('o historico virou o do arquivo', rodar('banco.sessoes.length'), 1);
-confere('a fila seguiu o arquivo (depois do C vem o A)', rodar('proximoTreinoId()'), 'treino-a');
+confere('a fila seguiu o arquivo (depois do C vem o A)', rodar('proximoTreinoId()'), 'treino-a1');
 confere('a foto do arquivo entrou', rodar("lerFoto('eq-remada')"), 'data:image/jpeg;base64,DOBACKUP');
 confere('a foto antiga saiu', rodar("lerFoto('eq-panturrilha')"), null);
 confere('da para desfazer', rodar('ultimaAcao.tipo'), 'restaurar');
@@ -350,17 +365,17 @@ confere('a foto do arquivo sumiu', rodar("lerFoto('eq-remada')"), null);
 console.log('\n--- historico do exercicio ---');
 /* duas sessoes registradas do supino, uma delas com desconforto e observacao */
 rodar('banco.sessoes = ' + JSON.stringify([
-  { data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+  { data: '2026-09-01', treinoId: 'treino-a1', estado: 'concluida', itens: [{
       exercicioId: 'supino-sentado',
       series: [{ cargaKg: 28, reps: 12 }, { cargaKg: 28, reps: 10, rir: 3 }],
       desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
-  { data: '2026-09-03', treinoId: 'treino-a', estado: 'incompleta', itens: [{
+  { data: '2026-09-03', treinoId: 'treino-a1', estado: 'incompleta', itens: [{
       exercicioId: 'supino-sentado',
       series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 11, rir: 2 }],
       desconforto: { nivel: 'leve', regioes: ['ombro'] },
       observacao: 'banco um furo mais alto', concluido: true }] }
 ]) + ';');
-rodar("sessao = criarSessao('treino-a'); desenhar();");
+rodar("sessao = criarSessao('treino-a1'); desenhar();");
 
 confere('comeca fechado', rodar('historicoAberto'), null);
 confere('o painel esta escondido',
@@ -401,14 +416,14 @@ rodar('fecharHistorico();');
 
 console.log('\n--- lista de treinos registrados ---');
 rodar('banco.sessoes = ' + JSON.stringify([
-  { id: 's1', data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+  { id: 's1', data: '2026-09-01', treinoId: 'treino-a1', estado: 'concluida', itens: [{
       exercicioId: 'supino-sentado', series: [{ cargaKg: 28, reps: 12 }],
       desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] },
-  { id: 's2', data: '2026-09-03', treinoId: 'treino-b', estado: 'concluida', itens: [{
+  { id: 's2', data: '2026-09-03', treinoId: 'treino-b1', estado: 'concluida', itens: [{
       exercicioId: 'remada', series: [{ cargaKg: 30, reps: 12 }, { cargaKg: 30, reps: 10 }],
       desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] }
 ]) + '; recalcularFila(); sessao = criarSessao(proximoTreinoId());');
-confere('a fila esta no C, porque o ultimo concluido foi o B', rodar('sessao.treinoId'), 'treino-c');
+confere('a fila esta no C, porque o ultimo concluido foi o B', rodar('sessao.treinoId'), 'treino-c1');
 
 rodar('abrirListaDeTreinos();');
 const lista = rodar("document.getElementById('painel').innerHTML");
@@ -425,7 +440,7 @@ confere('a pergunta diz qual treino', rodar("confirmando.texto.indexOf('Treino B
 rodar('executarConfirmacao();');
 confere('sobrou um treino', rodar('banco.sessoes.length'), 1);
 confere('a fila voltou para o B, porque o ultimo concluido agora e o A',
-  rodar('proximoTreinoId()'), 'treino-b');
+  rodar('proximoTreinoId()'), 'treino-b1');
 confere('o exercicio do treino apagado perdeu o historico',
   rodar("execucoesDe('remada').length"), 0);
 confere('da para desfazer', rodar('ultimaAcao.tipo'), 'apagar-sessao');
@@ -434,16 +449,16 @@ console.log('\n--- desfazer o apagar ---');
 rodar('desfazer();');
 confere('o treino voltou', rodar('banco.sessoes.length'), 2);
 confere('voltou para o mesmo lugar da lista', rodar('banco.sessoes[1].id'), 's2');
-confere('a fila voltou ao C', rodar('proximoTreinoId()'), 'treino-c');
+confere('a fila voltou ao C', rodar('proximoTreinoId()'), 'treino-c1');
 confere('o historico do exercicio voltou', rodar("execucoesDe('remada').length"), 1);
 
 console.log('\n--- apagar tudo deixa a fila no comeco ---');
 rodar("pedirApagarSessao('s1'); executarConfirmacao(); pedirApagarSessao('s2'); executarConfirmacao();");
 confere('nao sobrou treino nenhum', rodar('banco.sessoes.length'), 0);
-confere('a fila voltou para o A', rodar('proximoTreinoId()'), 'treino-a');
+confere('a fila voltou para o A', rodar('proximoTreinoId()'), 'treino-a1');
 
 console.log('\n--- treino de hoje, ainda em andamento ---');
-rodar("sessao = criarSessao('treino-a'); sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12); abrirListaDeTreinos();");
+rodar("sessao = criarSessao('treino-a1'); sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12); abrirListaDeTreinos();");
 const comHoje = rodar("document.getElementById('painel').innerHTML");
 confere('aparece marcado como em andamento', comHoje.indexOf('em andamento') > -1, true);
 confere('tem como apagar ele tambem', comHoje.indexOf('data-acao="descartar-atual"') > -1, true);
@@ -454,53 +469,53 @@ rodar('fecharHistorico();');
 
 
 console.log('\n--- editar treino ---');
-rodar("banco.sessoes = []; recalcularFila(); sessao = criarSessao('treino-a'); abrirEdicao('treino-a');");
+rodar("banco.sessoes = []; recalcularFila(); sessao = criarSessao('treino-a1'); abrirEdicao('treino-a1');");
 const telaEdicao = rodar("document.getElementById('painel').innerHTML");
-confere('o painel abriu na edicao', rodar('edicao.treinoId'), 'treino-a');
-confere('lista os 7 exercicios do A', rodar("acharTreino('treino-a').itens.length"), 7);
+confere('o painel abriu na edicao', rodar('edicao.treinoId'), 'treino-a1');
+confere('lista os 9 exercicios do A1', rodar("acharTreino('treino-a1').itens.length"), 9);
 confere('mostra os botoes de ajuste', telaEdicao.indexOf('data-acao="mais-series"') > -1, true);
-confere('tem aba dos tres treinos', (telaEdicao.match(/data-acao="editar-treino"/g) || []).length, 3);
+confere('tem aba dos seis treinos, e nenhuma dos arquivados', (telaEdicao.match(/data-acao="editar-treino"/g) || []).length, 6);
 
 console.log('\n--- mudar series, faixa e descanso ---');
 rodar('mudarSeries(0, +1);');
-confere('o primeiro exercicio foi para 3 series', rodar("acharTreino('treino-a').itens[0].series"), 3);
+confere('o primeiro exercicio foi para 3 series', rodar("acharTreino('treino-a1').itens[0].series"), 3);
 rodar('mudarSeries(0, -1);');
-confere('e voltou para 2', rodar("acharTreino('treino-a').itens[0].series"), 2);
+confere('e voltou para 2', rodar("acharTreino('treino-a1').itens[0].series"), 2);
 rodar('mudarFaixa(0, "max", +2);');
-confere('o maximo de reps subiu para 14', rodar("acharTreino('treino-a').itens[0].repMax"), 14);
+confere('o maximo de reps subiu para 14', rodar("acharTreino('treino-a1').itens[0].repMax"), 14);
 rodar('mudarFaixa(0, "min", -20);');
-confere('o minimo nao desce abaixo de 1', rodar("acharTreino('treino-a').itens[0].repMin"), 1);
+confere('o minimo nao desce abaixo de 1', rodar("acharTreino('treino-a1').itens[0].repMin"), 1);
 rodar('mudarFaixa(0, "min", +99);');
-confere('o minimo nunca passa o maximo', rodar("acharTreino('treino-a').itens[0].repMin"), 13);
+confere('o minimo nunca passa o maximo', rodar("acharTreino('treino-a1').itens[0].repMin"), 13);
 rodar('mudarDescanso(0, +15);');
-confere('o descanso subiu 15 segundos', rodar("acharTreino('treino-a').itens[0].descansoSeg"), 135);
+confere('o descanso subiu 15 segundos', rodar("acharTreino('treino-a1').itens[0].descansoSeg"), 135);
 rodar('mudarDescanso(0, -999);');
-confere('o descanso nao desce abaixo de 30', rodar("acharTreino('treino-a').itens[0].descansoSeg"), 30);
+confere('o descanso nao desce abaixo de 30', rodar("acharTreino('treino-a1').itens[0].descansoSeg"), 30);
 confere('tudo isso ficou salvo',
   rodar("JSON.parse(localStorage.getItem('treino.banco.jhone')).treinos[0].itens[0].descansoSeg"), 30);
 
 console.log('\n--- mudar a ordem ---');
-const primeiro = rodar("acharTreino('treino-a').itens[0].exercicioId");
-const segundo = rodar("acharTreino('treino-a').itens[1].exercicioId");
+const primeiro = rodar("acharTreino('treino-a1').itens[0].exercicioId");
+const segundo = rodar("acharTreino('treino-a1').itens[1].exercicioId");
 rodar('moverItem(0, +1);');
-confere('o primeiro desceu', rodar("acharTreino('treino-a').itens[1].exercicioId"), primeiro);
-confere('o segundo subiu', rodar("acharTreino('treino-a').itens[0].exercicioId"), segundo);
+confere('o primeiro desceu', rodar("acharTreino('treino-a1').itens[1].exercicioId"), primeiro);
+confere('o segundo subiu', rodar("acharTreino('treino-a1').itens[0].exercicioId"), segundo);
 rodar('moverItem(1, -1);');
-confere('e voltou ao lugar', rodar("acharTreino('treino-a').itens[0].exercicioId"), primeiro);
+confere('e voltou ao lugar', rodar("acharTreino('treino-a1').itens[0].exercicioId"), primeiro);
 rodar('moverItem(0, -1);');
-confere('subir o primeiro nao faz nada', rodar("acharTreino('treino-a').itens[0].exercicioId"), primeiro);
+confere('subir o primeiro nao faz nada', rodar("acharTreino('treino-a1').itens[0].exercicioId"), primeiro);
 
 console.log('\n--- trocar um exercicio, guardando o historico ---');
 /* o Smith ja tem duas sessoes registradas */
 rodar('banco.sessoes = ' + JSON.stringify([
-  { id: 'h1', data: '2026-09-01', treinoId: 'treino-a', estado: 'concluida', itens: [{
+  { id: 'h1', data: '2026-09-01', treinoId: 'treino-a1', estado: 'concluida', itens: [{
       exercicioId: 'quadriceps-a', series: [{ cargaKg: 40, reps: 12 }],
       desconforto: { nivel: 'leve', regioes: ['joelho'] }, observacao: '', concluido: true }] }
 ]) + ';');
 rodar("edicao.escolhendo = { modo: 'substituir', i: 0 }; nomeDigitado = 'Leg press 45'; criarExercicioDigitado();");
 confere('o exercicio novo entrou no lugar',
-  rodar("acharExercicio(acharTreino('treino-a').itens[0].exercicioId).nome"), 'Leg press 45');
-confere('o id novo saiu do nome', rodar("acharTreino('treino-a').itens[0].exercicioId"), 'leg-press-45');
+  rodar("acharExercicio(acharTreino('treino-a1').itens[0].exercicioId).nome"), 'Leg press 45');
+confere('o id novo saiu do nome', rodar("acharTreino('treino-a1').itens[0].exercicioId"), 'leg-press-45');
 confere('o historico do Smith continua guardado', rodar("execucoesDe('quadriceps-a').length"), 1);
 confere('o exercicio novo comeca sem historico', rodar("execucoesDe('leg-press-45').length"), 0);
 confere('o Smith continua no catalogo, para poder voltar',
@@ -509,10 +524,10 @@ confere('a carga do novo comeca em branco, sem herdar', rodar('sessao.itens[0].c
 
 console.log('\n--- acrescentar e tirar exercicio ---');
 rodar("edicao.escolhendo = { modo: 'adicionar' }; usarExercicio('panturrilha');");
-confere('o treino ficou com 8 exercicios', rodar("acharTreino('treino-a').itens.length"), 8);
-confere('e o treino de hoje acompanhou', rodar('sessao.itens.length'), 8);
-rodar('removerItem(7);');
-confere('voltou a 7', rodar("acharTreino('treino-a').itens.length"), 7);
+confere('o treino ficou com 10 exercicios', rodar("acharTreino('treino-a1').itens.length"), 10);
+confere('e o treino de hoje acompanhou', rodar('sessao.itens.length'), 10);
+rodar('removerItem(9);');
+confere('voltou a 9', rodar("acharTreino('treino-a1').itens.length"), 9);
 
 console.log('\n--- editar sem perder o que ja foi registrado hoje ---');
 rodar("sessao.itens[1].cargaAtualKg = 30; registrarSerie(1, 12);");
@@ -524,19 +539,19 @@ confere('e continua com as repeticoes certas',
   rodar("sessao.itens.filter(it => it.series.length > 0)[0].series[0].reps"), 12);
 
 console.log('\n--- proteções ---');
-rodar("abrirEdicao('treino-c');");
-confere('da para editar outro treino', rodar('edicao.treinoId'), 'treino-c');
-rodar("while (acharTreino('treino-c').itens.length > 1) removerItem(0);");
+rodar("abrirEdicao('treino-c1');");
+confere('da para editar outro treino', rodar('edicao.treinoId'), 'treino-c1');
+rodar("while (acharTreino('treino-c1').itens.length > 1) removerItem(0);");
 rodar('removerItem(0);');
 confere('nao deixa o treino ficar sem nenhum exercicio',
-  rodar("acharTreino('treino-c').itens.length"), 1);
+  rodar("acharTreino('treino-c1').itens.length"), 1);
 rodar('fecharHistorico();');
 confere('fechou a edicao', rodar('edicao'), null);
 
 
 console.log('\n--- aviso de desconforto repetido ---');
 const sessaoCom = (id, data, nivel, regiao) => ({
-  id: id, data: data, treinoId: 'treino-a', estado: 'concluida', itens: [{
+  id: id, data: data, treinoId: 'treino-a1', estado: 'concluida', itens: [{
     exercicioId: 'flexora-sentada',
     series: [{ cargaKg: 20, reps: 12 }, { cargaKg: 20, reps: 12, rir: 2 }],
     desconforto: { nivel: nivel, regioes: regiao ? [regiao] : [] },
@@ -602,7 +617,7 @@ rodar('banco.sessoes = ' + JSON.stringify([
   sessaoCom('d2', '2026-09-03', 'moderado', 'joelho'),
   sessaoCom('d3', '2026-09-05', 'forte', 'joelho')
 ]) + ';');
-rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = sessao.itens.findIndex(it => it.exercicioId === 'flexora-sentada'); desenhar();");
+rodar("sessao = criarSessao('treino-a1'); sessao.itemAberto = sessao.itens.findIndex(it => it.exercicioId === 'flexora-sentada'); desenhar();");
 confere('aparece no cartao do exercicio',
   rodar("document.getElementById('conteudo').innerHTML").indexOf('em 3 das últimas 3') > -1, true);
 rodar("abrirHistorico('flexora-sentada');");
@@ -616,7 +631,7 @@ confere('exercicio sem desconforto nao mostra nada',
 
 console.log('\n--- grafico de evolucao ---');
 const sessaoGraf = (id, data, carga, reps) => ({
-  id: id, data: data, treinoId: 'treino-a', estado: 'concluida', itens: [{
+  id: id, data: data, treinoId: 'treino-a1', estado: 'concluida', itens: [{
     exercicioId: 'banco-scott',
     series: [{ cargaKg: carga, reps: reps }, { cargaKg: carga, reps: reps, rir: 2 }],
     desconforto: { nivel: null, regioes: [] }, observacao: '', concluido: true }] });
@@ -673,7 +688,7 @@ rodar('fecharHistorico();');
 historico([topo('2026-09-01', 30, 2), topo('2026-09-03', 30, 2)]);
 
 console.log('\n--- desenhar a tela não quebra ---');
-rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 1; desenhar();");
+rodar("sessao = criarSessao('treino-a1'); sessao.itemAberto = 1; desenhar();");
 const tela = rodar("document.getElementById('conteudo').innerHTML");
 confere('lista preenchida', tela.length > 0, true);
 confere('nao tem mais botao de foto no cartao', tela.indexOf('Usar foto da minha academia') === -1, true);
@@ -684,8 +699,9 @@ confere('a confirmação aparece na tela',
   rodar("document.getElementById('conteudo').innerHTML").indexOf('Testando?') > -1, true);
 
 /* =============================================================
-   FICHA DE 11/09/2026
-   Três dias intercalados, sete exercícios, duas séries cada.
+   FICHA DE 18/09/2026: DOIS BLOCOS
+   Seis treinos (A1, B1, C1 e A2, B2, C2), nove exercícios e duas
+   séries cada. O bloco vira depois de seis treinos concluídos.
    Aqui a atualização é testada em cima de uma CÓPIA dos dados
    antigos, para provar que nada do passado é reescrito.
    ============================================================= */
@@ -701,56 +717,141 @@ rodar("localStorage.removeItem(chaveBanco(perfilId));" +
 console.log('\n--- a ficha nova, exercício por exercício ---');
 const ficha = id => rodar("acharTreino('" + id + "').itens.map(i => " +
   "[i.exercicioId, i.series, i.repMin, i.repMax, i.descansoSeg])");
+const nomes = id => ficha(id).map(i => i[0]);
 
-confere('Treino A', ficha('treino-a'), [
-  ['leg-press',        2,  8, 12, 120],
-  ['supino-sentado',   2,  8, 12, 120],
-  ['puxada-alta',      2,  8, 12, 120],
-  ['flexora-sentada',  2, 10, 15, 90],
-  ['elevacao-lateral', 2, 10, 15, 90],
-  ['banco-scott',      2, 10, 15, 90],
-  ['panturrilha',      2, 10, 15, 90]
-]);
-confere('Treino B', ficha('treino-b'), [
-  ['extensora',        2, 10, 15, 90],
-  ['supino-inclinado', 2,  8, 12, 120],
-  ['remada',           2,  8, 12, 120],
-  ['flexora-sentada',  2, 10, 15, 90],
-  ['desenvolvimento',  2,  8, 12, 120],
-  ['triceps-polia',    2, 10, 15, 90],
-  ['abdominal-curto',  2, 10, 15, 90]
-]);
-confere('Treino C', ficha('treino-c'), [
-  ['leg-press',        2,  8, 12, 120],
-  ['pec-deck',         2,  8, 12, 120],
-  ['puxador-remada',   2,  8, 12, 120],
-  ['flexora-sentada',  2, 10, 15, 90],
-  ['elevacao-lateral', 2, 10, 15, 90],
-  ['panturrilha',      2, 10, 15, 90],
-  ['rosca-halteres-sentado', 2, 10, 15, 90]
-]);
-confere('sete exercícios em cada treino',
-  rodar('banco.treinos.map(t => t.itens.length)'), [7, 7, 7]);
-confere('quatorze séries previstas em cada treino',
-  rodar('banco.treinos.map(t => t.itens.reduce((s, i) => s + i.series, 0))'), [14, 14, 14]);
-confere('o leg press do A e o do C são o mesmo exercício',
-  rodar("acharTreino('treino-a').itens[0].exercicioId === acharTreino('treino-c').itens[0].exercicioId"), true);
+confere('Treino A1', nomes('treino-a1'), ['leg-press', 'supino-sentado', 'puxada-alta',
+  'elevacao-lateral', 'banco-scott', 'triceps-polia', 'flexora-sentada', 'panturrilha', 'abdominal-curto']);
+confere('Treino B1', nomes('treino-b1'), ['extensora', 'supino-inclinado', 'remada',
+  'desenvolvimento', 'rosca-martelo-sentado', 'triceps-testa-halteres', 'maquina-gluteo',
+  'cadeira-adutora', 'abdominal-articulado']);
+confere('Treino C1', nomes('treino-c1'), ['leg-press', 'pec-deck', 'puxador-remada',
+  'peck-deck-reverso', 'rosca-halteres-sentado', 'triceps-corda', 'flexora-deitada',
+  'cadeira-abdutora', 'panturrilha']);
+confere('Treino A2', nomes('treino-a2'), ['leg-press', 'supino-halteres-deitado', 'pulley-supinado',
+  'elevacao-lateral-polia', 'rosca-polia-baixa', 'triceps-invertido-polia', 'flexora-deitada',
+  'panturrilha-leg-press', 'abdominal-articulado']);
+confere('Treino B2', nomes('treino-b2'), ['extensora', 'supino-inclinado-halteres',
+  'remada-unilateral-halter', 'desenvolvimento', 'rosca-concentrada', 'triceps-coice',
+  'maquina-gluteo', 'cadeira-abdutora', 'abdominal-curto']);
+confere('Treino C2', nomes('treino-c2'), ['leg-press', 'crucifixo-cross', 'pullover-polia',
+  'face-pull', 'rosca-inclinada', 'triceps-acima-cabeca', 'flexora-sentada', 'cadeira-adutora',
+  'panturrilha']);
+
+const ativos = () => rodar('treinosAtivos().map(t => t.id)');
+confere('seis treinos na fila, na ordem', ativos(),
+  ['treino-a1', 'treino-b1', 'treino-c1', 'treino-a2', 'treino-b2', 'treino-c2']);
+confere('nove exercícios em cada treino',
+  rodar('treinosAtivos().map(t => t.itens.length)'), [9, 9, 9, 9, 9, 9]);
+confere('dezoito séries previstas em cada treino',
+  rodar('treinosAtivos().map(t => t.itens.reduce((s, i) => s + i.series, 0))'), [18, 18, 18, 18, 18, 18]);
+confere('três treinos em cada bloco',
+  rodar('[1, 2].map(b => treinosAtivos().filter(t => t.bloco === b).length)'), [3, 3]);
+confere('todo exercício da ficha existe no catálogo',
+  rodar('treinosAtivos().flatMap(t => t.itens).filter(i => !acharExercicio(i.exercicioId)).length'), 0);
+confere('a elevação pélvica ficou de fora, por pedido dele',
+  rodar("treinosAtivos().some(t => t.itens.some(i => i.exercicioId.indexOf('pelvica') > -1))"), false);
+confere('a flexora não aparece mais no treino B',
+  nomes('treino-b1').concat(nomes('treino-b2')).filter(id => id.indexOf('flexora') > -1), []);
+confere('nada de hack, sissy, Smith ou goblet (joelho)',
+  rodar("treinosAtivos().flatMap(t => t.itens).filter(i => ['quadriceps-a','quadriceps-c'].indexOf(i.exercicioId) > -1).length"), 0);
 confere('o abdominal curto não tem carga',
   rodar("acharExercicio('abdominal-curto').semCarga"), true);
-confere('a rosca sentada é exercício novo, não a Rosca ou tríceps',
-  rodar("acharExercicio('rosca-halteres-sentado').id !== 'rosca-ou-triceps'"), true);
+confere('os feitos um lado por vez contam repetição por lado',
+  rodar("['remada-unilateral-halter','rosca-concentrada','triceps-coice','elevacao-lateral-polia','maquina-gluteo'].every(id => acharExercicio(id).porLado)"), true);
+confere('os treinos A, B e C de antes estão arquivados, não apagados',
+  rodar("['treino-a','treino-b','treino-c'].map(id => !!acharTreino(id).arquivado)"), [true, true, true]);
 
-console.log('\n--- orientações que aparecem no cartão ---');
+console.log('\n--- como fazer ---');
+confere('todo exercício da ficha tem as três linhas',
+  rodar('treinosAtivos().flatMap(t => t.itens).filter(i => ' +
+    '!(DADOS_INICIAIS.comoFazer[i.exercicioId] && DADOS_INICIAIS.comoFazer[i.exercicioId].length === 3)).map(i => i.exercicioId)'), []);
+confere('o como fazer não é copiado para o celular',
+  rodar("acharExercicio('face-pull').comoFazer"), undefined);
 confere('o leg press tem a orientação de regulagem e travas',
   rodar("acharExercicio('leg-press').instrucoes")
     .indexOf('Confira regulagem e travas com o instrutor') === 0, true);
 confere('a extensora manteve a observação do joelho',
   rodar("acharExercicio('extensora').instrucoes").indexOf('joelho') > -1, true);
 
+/* ---------- a fila dos blocos ---------- */
+
+/* uma sessão concluída de mentira, de um treino qualquer */
+let diaFalso = 1;
+function concluidaDe(treinoId, estado) {
+  const dia = String(diaFalso++).padStart(2, '0');
+  /* datas antigas de propósito: o treino concluído no teste leva a data
+     de hoje e precisa ficar depois delas */
+  return { id: 'b' + dia, data: '2026-01-' + dia, treinoId: treinoId,
+           estado: estado || 'concluida', itens: [] };
+}
+function fila(lista) {
+  rodar('banco.sessoes = ' + JSON.stringify(lista) + ';');
+  return rodar('proximoTreinoId()');
+}
+
+console.log('\n--- a fila anda dentro do bloco ---');
+diaFalso = 1;
+confere('sem histórico começa no A1', fila([]), 'treino-a1');
+confere('depois do A1 vem o B1', fila([concluidaDe('treino-a1')]), 'treino-b1');
+confere('depois do C1 volta ao A1, porque o bloco ainda não acabou',
+  fila([concluidaDe('treino-a1'), concluidaDe('treino-b1'), concluidaDe('treino-c1')]), 'treino-a1');
+confere('treino incompleto não empurra a fila',
+  fila([concluidaDe('treino-a1'), concluidaDe('treino-b1', 'incompleta')]), 'treino-b1');
+
+console.log('\n--- seis treinos concluídos viram o bloco ---');
+diaFalso = 1;
+const bloco1 = ['treino-a1', 'treino-b1', 'treino-c1', 'treino-a1', 'treino-b1', 'treino-c1']
+  .map(id => concluidaDe(id));
+confere('com cinco, ainda está no bloco 1 (vem o C1)', fila(bloco1.slice(0, 5)), 'treino-c1');
+confere('e a conta diz treino 6 de 6', rodar('estadoDoBloco()'),
+  { bloco: 1, feitos: 5, ultimoId: 'treino-b1', total: 6 });
+confere('com seis, passa para o A2', fila(bloco1), 'treino-a2');
+confere('e a conta recomeça no bloco 2', rodar('[estadoDoBloco().bloco, estadoDoBloco().feitos]'), [2, 0]);
+const bloco2 = ['treino-a2', 'treino-b2', 'treino-c2', 'treino-a2', 'treino-b2', 'treino-c2']
+  .map(id => concluidaDe(id));
+confere('no meio do bloco 2 segue nele', fila(bloco1.concat(bloco2.slice(0, 2))), 'treino-c2');
+confere('fechado o bloco 2, volta para o A1', fila(bloco1.concat(bloco2)), 'treino-a1');
+
+console.log('\n--- troca feita na mão ---');
+diaFalso = 1;
+confere('concluir um treino do outro bloco muda o bloco da vez',
+  fila([concluidaDe('treino-a1'), concluidaDe('treino-b2')]), 'treino-c2');
+confere('treinos da ficha antiga não entram na conta',
+  fila([concluidaDe('treino-a'), concluidaDe('treino-b')]), 'treino-a1');
+
+console.log('\n--- a linha do bloco no cabeçalho ---');
+rodar("banco.sessoes = []; sessao = criarSessao(proximoTreinoId()); desenhar();");
+confere('primeiro treino de todos diz 1 de 6, e não 1 de 0',
+  rodar("document.getElementById('cabecalho').innerHTML").indexOf('Bloco 1 · treino 1 de 6') > -1, true);
+diaFalso = 1;
+rodar('banco.sessoes = ' + JSON.stringify(bloco1.slice(0, 1)) + ';' +
+      'sessao = criarSessao(proximoTreinoId()); desenhar();');
+const cabecalho = () => rodar("document.getElementById('cabecalho').innerHTML");
+confere('mostra o bloco e o número do treino', cabecalho().indexOf('Bloco 1 · treino 2 de 6') > -1, true);
+confere('o título é o do B1', cabecalho().indexOf('TREINO B1') > -1, true);
+rodar("sessao = criarSessao('treino-a2'); desenhar();");
+confere('treino do outro bloco mostra só o bloco',
+  cabecalho().indexOf('Bloco 2</div>') > -1 && cabecalho().indexOf('treino 2 de 6') === -1, true);
+
+console.log('\n--- concluir o sexto treino avisa a virada ---');
+rodar('banco.sessoes = ' + JSON.stringify(bloco1.slice(0, 5)) + ';' +
+      "sessao = criarSessao('treino-c1'); sessao.itens[0].cargaAtualKg = 50; registrarSerie(0, 10);" +
+      'pedirConclusaoDoTreino(); executarConfirmacao();');
+confere('a sessão nova já é do A2', rodar('sessao.treinoId'), 'treino-a2');
+confere('a faixa avisa a virada', rodar("document.getElementById('desfazer').innerHTML")
+  .indexOf('Fim do Bloco 1: agora vem o Bloco 2') > -1, true);
+
+console.log('\n--- apagar um treino acerta a conta sozinho ---');
+rodar("pedirApagarSessao(banco.sessoes[banco.sessoes.length - 1].id); executarConfirmacao();");
+confere('volta para o bloco 1, faltando o C1', rodar('proximoTreinoId()'), 'treino-c1');
+rodar('desfazer();');
+confere('desfeito, o bloco 2 volta', rodar('proximoTreinoId()'), 'treino-a2');
+
 /* ---------- a atualização rodando em cima de dados antigos ---------- */
 
 const exerciciosAntigos = rodar('DADOS_INICIAIS.exercicios')
-  .filter(e => ['leg-press', 'abdominal-curto', 'rosca-halteres-sentado'].indexOf(e.id) === -1)
+  .filter(e => ['leg-press', 'abdominal-curto', 'rosca-halteres-sentado', 'peck-deck-reverso',
+    'rosca-martelo-sentado', 'flexora-deitada', 'face-pull'].indexOf(e.id) === -1)
   .map(e => Object.assign({}, e, { instrucoes: 'texto antigo' }));
 
 /* o que estava no celular dele antes desta atualização */
@@ -791,23 +892,49 @@ const bancoAntigo = {
   config: { ultimoTreinoConcluido: 'treino-c', incrementoPadraoKg: 1 }
 };
 
-function abrirComoCelularAntigo() {
+/* o celular dele de verdade estava na 4, com a ficha de 11/09 */
+const bancoDa4 = JSON.parse(JSON.stringify(bancoAntigo));
+bancoDa4.versaoDosDados = 4;
+bancoDa4.exercicios = rodar('DADOS_INICIAIS.exercicios').filter(e =>
+  novosDe18.concat(['cadeira-abdutora', 'panturrilha-leg-press']).indexOf(e.id) === -1);
+bancoDa4.treinos = rodar("DADOS_INICIAIS.treinos.filter(t => t.arquivado)")
+  .map(t => { const c = JSON.parse(JSON.stringify(t)); delete c.arquivado; c.ordem = c.ordem - 90; return c; });
+
+function abrirComo(bancoGuardado) {
   rodar("localStorage.removeItem(chaveSessao(perfilId));" +
-        "localStorage.removeItem('treino.copiaAntesDaFicha4');" +
+        "localStorage.removeItem('treino.copiaAntesDaFicha5');" +
         'fichaPendente = false;' +
-        'banco = ' + JSON.stringify(bancoAntigo) + '; salvarBanco(); completarComSementes();' +
+        'banco = ' + JSON.stringify(bancoGuardado) + '; salvarBanco(); completarComSementes();' +
         'sessao = criarSessao(proximoTreinoId());');
 }
 
-console.log('\n--- celular que estava na ficha antiga recebe a nova ---');
-abrirComoCelularAntigo();
-confere('a versão dos dados chegou na 4', rodar('banco.versaoDosDados'), 4);
-confere('a ficha do dia é a nova', ficha('treino-b').map(i => i[0]),
+console.log('\n--- celular que estava na ficha de 11/09 recebe os blocos ---');
+abrirComo(bancoDa4);
+confere('a versão dos dados chegou na 5', rodar('banco.versaoDosDados'), 5);
+confere('a fila é a dos seis treinos novos', ativos(),
+  ['treino-a1', 'treino-b1', 'treino-c1', 'treino-a2', 'treino-b2', 'treino-c2']);
+confere('os treinos A, B e C saíram da fila', rodar("['treino-a','treino-b','treino-c'].map(id => !!acharTreino(id).arquivado)"),
+  [true, true, true]);
+confere('mas continuam com a lista que ele treinou', nomes('treino-b'),
   ['extensora', 'supino-inclinado', 'remada', 'flexora-sentada', 'desenvolvimento', 'triceps-polia', 'abdominal-curto']);
 confere('as sessões antigas ficaram idênticas', rodar('banco.sessoes'), sessoesAntigas);
-confere('a fila A > B > C não foi reiniciada',
+confere('o treino de hoje é o A1', rodar('sessao.treinoId'), 'treino-a1');
+confere('os exercícios novos entraram no catálogo',
+  rodar("['peck-deck-reverso','face-pull','rosca-inclinada'].every(id => !!acharExercicio(id))"), true);
+confere('o tríceps na polia trocou o desenho da corda pelo da barra reta',
+  rodar("[acharExercicio('triceps-polia').ilustracao, acharExercicio('triceps-corda').ilustracao]"),
+  ['imagens/triceps-polia-barra.webp', 'imagens/triceps-corda.webp']);
+confere('a lista de treinos registrados ainda mostra o nome antigo',
+  rodar("abrirListaDeTreinos(); document.getElementById('painel').innerHTML").indexOf('Treino C') > -1, true);
+rodar('fecharHistorico();');
+
+console.log('\n--- celular ainda na versão 3 pula direto para a 5 ---');
+abrirComo(bancoAntigo);
+confere('a versão dos dados chegou na 5', rodar('banco.versaoDosDados'), 5);
+confere('a fila é a nova', rodar('proximoTreinoId()'), 'treino-a1');
+confere('as sessões antigas ficaram idênticas', rodar('banco.sessoes'), sessoesAntigas);
+confere('a fila antiga continua anotada, sem ser usada',
   rodar('banco.config.ultimoTreinoConcluido'), 'treino-c');
-confere('e o próximo treino continua sendo o A', rodar('proximoTreinoId()'), 'treino-a');
 
 console.log('\n--- histórico dos exercícios que saíram ---');
 confere('o Smith mantém a sessão dele',
@@ -824,77 +951,80 @@ confere('quem ficou na ficha manteve o histórico',
   rodar("cargaDoItem(execucoesDe('supino-sentado')[0].item)"), 30);
 
 console.log('\n--- exercício novo não herda carga de exercício antigo ---');
-rodar("sessao = criarSessao('treino-a');");
+rodar("sessao = criarSessao('treino-a1');");
 confere('o leg press abre sem carga (não veio do Smith)', rodar('sessao.itens[0].cargaAtualKg'), null);
 confere('o supino continua abrindo com a carga dele', rodar('sessao.itens[1].cargaAtualKg'), 30);
-rodar("sessao = criarSessao('treino-c');");
+confere('a flexora não herdou carga do romeno', rodar('sessao.itens[6].cargaAtualKg'), null);
+confere('a panturrilha continua com a carga dela', rodar('sessao.itens[7].cargaAtualKg'), 12);
+confere('o abdominal curto não usa carga nenhuma', rodar('sessao.itens[8].cargaAtualKg'), null);
+rodar("sessao = criarSessao('treino-c1');");
 confere('a rosca sentada abre sem carga (não veio da Rosca ou tríceps)',
-  rodar('sessao.itens[6].cargaAtualKg'), null);
-confere('a panturrilha continua com a carga dela', rodar('sessao.itens[5].cargaAtualKg'), 12);
-rodar("sessao = criarSessao('treino-b');");
-confere('a flexora não herdou carga do romeno', rodar('sessao.itens[3].cargaAtualKg'), null);
-confere('o abdominal curto não usa carga nenhuma', rodar('sessao.itens[6].cargaAtualKg'), null);
+  rodar('sessao.itens[4].cargaAtualKg'), null);
 
 console.log('\n--- cópia de segurança antes de mexer nos dados ---');
-const copia = JSON.parse(rodar("localStorage.getItem('treino.copiaAntesDaFicha4')"));
+const copia = JSON.parse(rodar("localStorage.getItem('treino.copiaAntesDaFicha5')"));
 confere('a cópia foi guardada', copia !== null, true);
 confere('ela tem a ficha ANTIGA, para dar para voltar',
   copia.banco.treinos[0].itens[0].exercicioId, 'quadriceps-a');
 confere('e o histórico inteiro', copia.banco.sessoes.length, 2);
 
 console.log('\n--- a atualização não se repete a cada abertura ---');
-rodar("acharTreino('treino-a').itens.push({exercicioId:'panturrilha', series:2, repMin:10, repMax:15, descansoSeg:90});");
+rodar("acharTreino('treino-a1').itens.push({exercicioId:'panturrilha', series:2, repMin:10, repMax:15, descansoSeg:90});");
 rodar('completarComSementes(); completarComSementes();');
 confere('a edição dele foi respeitada, a ficha não voltou a ser imposta',
-  rodar("acharTreino('treino-a').itens.length"), 8);
-rodar("acharTreino('treino-a').itens.pop();");
+  rodar("acharTreino('treino-a1').itens.length"), 10);
+rodar("acharTreino('treino-a1').itens.pop();");
 
 console.log('\n--- treino em andamento fica com a ficha dele até acabar ---');
-rodar("localStorage.removeItem('treino.copiaAntesDaFicha4'); fichaPendente = false;" +
-      'banco = ' + JSON.stringify(bancoAntigo) + '; salvarBanco();');
-/* uma sessão do treino A da ficha ANTIGA, já com séries registradas */
-rodar("sessao = criarSessao('treino-a'); sessao.itens[0].cargaAtualKg = 40;" +
+rodar("localStorage.removeItem('treino.copiaAntesDaFicha5'); fichaPendente = false;" +
+      'banco = ' + JSON.stringify(bancoDa4) + '; salvarBanco();');
+/* uma sessão do treino A da ficha de 11/09, já com séries registradas */
+rodar("sessao = criarSessao('treino-a'); sessao.itens[0].cargaAtualKg = 60;" +
       'registrarSerie(0, 12); salvarSessao();');
 rodar('completarComSementes();');
 confere('a atualização ficou esperando', rodar('fichaPendente'), true);
-confere('a ficha do dia continua a antiga', ficha('treino-a').map(i => i[0]),
-  ['quadriceps-a', 'supino-sentado']);
+confere('o treino A ainda não foi arquivado', rodar("!!acharTreino('treino-a').arquivado"), false);
 confere('a série registrada hoje continua no lugar', rodar('sessao.itens[0].series.length'), 1);
-confere('e ainda casa com o exercício certo',
-  rodar("sessao.itens[0].exercicioId"), 'quadriceps-a');
-confere('a versão dos dados ainda não subiu', rodar('banco.versaoDosDados'), 3);
+confere('e ainda casa com o exercício certo', rodar('sessao.itens[0].exercicioId'), 'leg-press');
+confere('a versão dos dados ainda não subiu', rodar('banco.versaoDosDados'), 4);
 rodar('pedirConclusaoDoTreino(); executarConfirmacao();');
-confere('encerrado o treino, a ficha nova entrou', ficha('treino-a').map(i => i[0])[0], 'leg-press');
-confere('a versão subiu depois', rodar('banco.versaoDosDados'), 4);
-confere('o treino de hoje foi guardado com o exercício antigo',
-  rodar('banco.sessoes[banco.sessoes.length - 1].itens[0].exercicioId'), 'quadriceps-a');
+confere('encerrado o treino, os blocos entraram', ativos()[0], 'treino-a1');
+confere('o treino A foi arquivado', rodar("!!acharTreino('treino-a').arquivado"), true);
+confere('a versão subiu depois', rodar('banco.versaoDosDados'), 5);
+confere('a sessão nova é do A1', rodar('sessao.treinoId'), 'treino-a1');
+confere('o treino de hoje foi guardado com o treino antigo',
+  rodar('banco.sessoes[banco.sessoes.length - 1].treinoId'), 'treino-a');
 confere('e com a carga que ele usou',
-  rodar('banco.sessoes[banco.sessoes.length - 1].itens[0].series[0].cargaKg'), 40);
+  rodar('banco.sessoes[banco.sessoes.length - 1].itens[0].series[0].cargaKg'), 60);
 confere('a cópia de segurança também foi feita nesse caminho',
-  rodar("localStorage.getItem('treino.copiaAntesDaFicha4') !== null"), true);
+  rodar("localStorage.getItem('treino.copiaAntesDaFicha5') !== null"), true);
 
 console.log('\n--- salvar e restaurar backup com a ficha nova ---');
 let blobSalvo = null;
 ctx.Blob = function (partes) { blobSalvo = partes[0]; };
+rodar("acharExercicio('face-pull').video = 'abcdefghijk';");
 rodar('exportarBackup();');
 const exportado = JSON.parse(blobSalvo);
 /* o arquivo agora vem separado por pessoa: dados.jhone, dados.eliete */
 const deleNoArquivo = exportado.dados[rodar('perfilId')];
+const noArquivo = id => deleNoArquivo.banco.treinos.find(t => t.id === id);
 confere('o arquivo diz a versão do formato', exportado.versaoDoFormato, 3);
-confere('o arquivo sai com a ficha nova',
-  deleNoArquivo.banco.treinos[0].itens.map(i => i.exercicioId)[0], 'leg-press');
+confere('o arquivo sai com a ficha nova', noArquivo('treino-a1').itens[0].exercicioId, 'leg-press');
+confere('e com o vídeo escolhido',
+  deleNoArquivo.banco.exercicios.find(e => e.id === 'face-pull').video, 'abcdefghijk');
 confere('e com todo o histórico dentro', deleNoArquivo.banco.sessoes.length, 3);
 confere('o app aceita o próprio arquivo de volta',
   rodar('conferirBackup(' + JSON.stringify(JSON.stringify(exportado)) + ') !== null'), true);
-rodar("banco.sessoes = []; acharTreino('treino-a').itens = []; salvarBanco();");
+rodar("banco.sessoes = []; acharTreino('treino-a1').itens = []; delete acharExercicio('face-pull').video; salvarBanco();");
 rodar('backupParaRestaurar = conferirBackup(' +
   JSON.stringify(JSON.stringify(exportado)) + '); restaurarBackup();');
 confere('restaurou o histórico', rodar('banco.sessoes.length'), 3);
-confere('restaurou a ficha', ficha('treino-a').map(i => i[0])[0], 'leg-press');
-confere('e continua na versão 4, sem reaplicar nada', rodar('banco.versaoDosDados'), 4);
+confere('restaurou a ficha', nomes('treino-a1')[0], 'leg-press');
+confere('restaurou o vídeo', rodar("acharExercicio('face-pull').video"), 'abcdefghijk');
+confere('e continua na versão 5, sem reaplicar nada', rodar('banco.versaoDosDados'), 5);
 
 console.log('\n--- o cartão na tela ---');
-rodar("sessao = criarSessao('treino-a'); sessao.itemAberto = 0; desenhar();");
+rodar("sessao = criarSessao('treino-a1'); sessao.itemAberto = 0; desenhar();");
 const cartao = rodar("document.getElementById('conteudo').innerHTML");
 confere('o leg press mostra o desenho dele, e nenhum de agachamento',
   cartao.indexOf('imagens/leg-press.webp') > -1 && cartao.indexOf('imagens/quadriceps') === -1, true);
@@ -902,16 +1032,72 @@ confere('e a orientação do leg press aparece',
   cartao.indexOf('Confira regulagem e travas') > -1, true);
 confere('a prescrição do cartão é 2 x 8-12 com 120s',
   cartao.indexOf('2 x 8-12 · 120s') > -1, true);
+confere('o como fazer aparece com as três etapas',
+  ['Como fazer', '<b>Ajuste:</b>', '<b>Movimento:</b>', '<b>Cuidado:</b>'].every(t => cartao.indexOf(t) > -1), true);
+
+console.log('\n--- primeira vez no exercício ---');
+rodar('sessao.itemAberto = 3; desenhar();');   // elevação lateral, nunca feita
+const cartaoNovo = rodar("document.getElementById('conteudo').innerHTML");
+confere('exercício nunca feito pede carga leve e o instrutor',
+  cartaoNovo.indexOf('Primeira vez neste exercício.') > -1 &&
+  cartaoNovo.indexOf('peça ao instrutor para conferir a postura') > -1, true);
+rodar('sessao.itemAberto = 1; desenhar();');
+confere('exercício já feito não mostra o aviso',
+  rodar("document.getElementById('conteudo').innerHTML").indexOf('Primeira vez') === -1, true);
+
+console.log('\n--- vídeo do exercício ---');
+const idYt = t => rodar('idDoYoutube(' + JSON.stringify(t) + ')');
+confere('link comum', idYt('https://www.youtube.com/watch?v=dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+confere('link com mais coisa depois', idYt('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s'), 'dQw4w9WgXcQ');
+confere('link curto do botão compartilhar', idYt('https://youtu.be/dQw4w9WgXcQ?si=AbCdEf123'), 'dQw4w9WgXcQ');
+confere('link do celular', idYt('https://m.youtube.com/watch?feature=share&v=dQw4w9WgXcQ'), 'dQw4w9WgXcQ');
+confere('link de shorts', idYt('https://youtube.com/shorts/dQw4w9WgXcQ?feature=share'), 'dQw4w9WgXcQ');
+confere('link de outro site é recusado', idYt('https://www.google.com/search?q=rosca'), null);
+confere('a página de busca é recusada', idYt('https://www.youtube.com/results?search_query=face+pull'), null);
+confere('texto qualquer é recusado', idYt('rosca martelo'), null);
+
+rodar("delete acharExercicio('face-pull').video; sessao = criarSessao('treino-c2'); sessao.itemAberto = 3; desenhar();");
+let cartaoVideo = rodar("document.getElementById('conteudo').innerHTML");
+confere('sem vídeo: botão de procurar no YouTube, com o nome do exercício',
+  cartaoVideo.indexOf('youtube.com/results?search_query=Face%20pull%20na%20polia%20como%20fazer') > -1, true);
+confere('abre fora do app', cartaoVideo.indexOf('target="_blank"') > -1, true);
+confere('e o campo para colar o link', cartaoVideo.indexOf('data-campo="link-video"') > -1, true);
+confere('sem player ainda', cartaoVideo.indexOf('<iframe') === -1, true);
+
+rodar("linkDigitado = 'https://www.google.com'; guardarVideo('face-pull');");
+confere('link errado não é guardado', rodar("acharExercicio('face-pull').video"), undefined);
+confere('e avisa na faixa, sem pop up',
+  rodar("document.getElementById('desfazer').innerHTML").indexOf('não parece ser de um vídeo do YouTube') > -1, true);
+
+rodar("linkDigitado = 'https://youtu.be/dQw4w9WgXcQ?si=x'; guardarVideo('face-pull');");
+confere('link certo é guardado só com o código', rodar("acharExercicio('face-pull').video"), 'dQw4w9WgXcQ');
+confere('e fica salvo no celular',
+  JSON.parse(rodar("localStorage.getItem('treino.banco.jhone')")).exercicios
+    .find(e => e.id === 'face-pull').video, 'dQw4w9WgXcQ');
+cartaoVideo = rodar("document.getElementById('conteudo').innerHTML");
+confere('o vídeo já abre tocando dentro do cartão',
+  cartaoVideo.indexOf('youtube-nocookie.com/embed/dQw4w9WgXcQ') > -1, true);
+rodar("videoAberto = null; desenhar();");
+cartaoVideo = rodar("document.getElementById('conteudo').innerHTML");
+confere('fechado, vira o botão Ver vídeo',
+  cartaoVideo.indexOf('data-acao="ver-video"') > -1 && cartaoVideo.indexOf('<iframe') === -1, true);
+rodar("editandoVideo = 'face-pull'; desenhar();");
+confere('trocar o vídeo mostra o campo de novo e o botão de tirar',
+  rodar("document.getElementById('conteudo').innerHTML").indexOf('data-acao="tirar-video"') > -1, true);
+rodar("tirarVideo('face-pull');");
+confere('tirar o vídeo volta ao começo', rodar("acharExercicio('face-pull').video"), undefined);
 
 /* exercício criado por ele na tela não tem desenho: aí sim entra o
    espaço reservado, com o nome dentro */
 rodar("const inventado = criarExercicio('Exercício inventado agora');" +
-      "acharTreino('treino-a').itens[0].exercicioId = inventado.id;" +
-      "sessao = criarSessao('treino-a'); sessao.itemAberto = 0; desenhar();");
+      "acharTreino('treino-a1').itens[0].exercicioId = inventado.id;" +
+      "sessao = criarSessao('treino-a1'); sessao.itemAberto = 0; desenhar();");
 const cartaoSemDesenho = rodar("document.getElementById('conteudo').innerHTML");
 confere('exercício sem desenho mostra espaço reservado com o nome',
   cartaoSemDesenho.indexOf('sem-desenho') > -1 &&
   cartaoSemDesenho.indexOf('Exercício inventado agora') > -1, true);
+confere('e sem como fazer, porque não fui eu que escrevi',
+  cartaoSemDesenho.indexOf('Como fazer') === -1, true);
 rodar('sessao.itens[0].cargaAtualKg = 100; registrarSerie(0, 12); registrarSerie(0, 12); desenhar();');
 confere('a explicação do RIR está junto do campo',
   rodar("document.getElementById('conteudo').innerHTML")
@@ -955,6 +1141,7 @@ function novoApp(gaveta) {
   ctx2.globalThis = ctx2;
   vm.createContext(ctx2);
   vm.runInContext(fs.readFileSync(path + 'dados-iniciais.js', 'utf8'), ctx2);
+  vm.runInContext(fs.readFileSync(path + 'colecao.js', 'utf8'), ctx2);
   vm.runInContext(fs.readFileSync(path + 'app.js', 'utf8'), ctx2);
   return {
     ctx: ctx2,
@@ -1004,7 +1191,8 @@ confere('a foto antiga foi copiada para o perfil',
   app.rodar("localStorage.getItem('treino.foto.jhone.eq-antigo')"), 'data:image/jpeg;base64,FOTOVELHA');
 confere('o nome que ele tinha trocado nao foi reescrito',
   app.rodar("acharExercicio('supino-sentado').nome"), 'Supino que eu chamo assim');
-confere('a fila continuou onde estava', app.rodar('proximoTreinoId()'), 'treino-c');
+confere('a fila continuou anotada como estava',
+  app.rodar('banco.config.ultimoTreinoConcluido'), 'treino-b');
 confere('o app abriu no perfil dele', app.rodar('perfilId'), 'jhone');
 confere('a cor do perfil dele e laranja',
   app.rodar("document.documentElement.atributos['data-tema']"), 'laranja');
@@ -1377,10 +1565,10 @@ confere('nem as sementes distribuidas',
 
 
 console.log('\n--- 12. treino parado no meio da semana pode ser fechado ---');
-/* Ele fez 5 dos 7 exercicios e saiu. No dia seguinte o aviso da sessao
+/* Ele fez 5 dos 9 exercicios e saiu. No dia seguinte o aviso da sessao
    antiga precisa deixar concluir, senao a fila nunca sai do treino A. */
 app.rodar("trocarPerfil('jhone'); banco.sessoes = []; banco.config.ultimoTreinoConcluido = null;" +
-  "sessao = criarSessao('treino-a');" +
+  "sessao = criarSessao('treino-a1');" +
   "for (let i = 0; i < 5; i++) { sessao.itens[i].cargaAtualKg = 20; registrarSerie(i, 12); }" +
   "perguntarSobrePendente = true; desenhar();");
 const avisoAntigo = app.rodar("document.getElementById('conteudo').innerHTML");
@@ -1390,10 +1578,84 @@ confere('e continua oferecendo incompleta',
   avisoAntigo.indexOf('data-acao="sessao-incompleta"') > -1, true);
 app.rodar("pedirConclusaoDoTreino();");
 confere('a confirmacao diz quantos exercicios foram',
-  app.rodar('confirmando.texto').indexOf('5 de 7') > -1, true);
+  app.rodar('confirmando.texto').indexOf('5 de 9') > -1, true);
 app.rodar("executarConfirmacao();");
-confere('a fila andou para o treino B', app.rodar('proximoTreinoId()'), 'treino-b');
+confere('a fila andou para o treino B1', app.rodar('proximoTreinoId()'), 'treino-b1');
 confere('o aviso saiu da tela', app.rodar('perguntarSobrePendente'), false);
+
+console.log('\n--- 13. trocar desenho, só entre os parecidos ---');
+const colecao = app.rodar('COLECAO_DE_DESENHOS');
+confere('a coleção tem os 155 desenhos', colecao.length, 155);
+confere('todo desenho da coleção existe na pasta',
+  colecao.filter(d => !fs.existsSync(path + d.arquivo)).map(d => d.arquivo), []);
+confere('nenhum desenho repetido na lista',
+  new Set(colecao.map(d => d.arquivo)).size, colecao.length);
+confere('todo desenho tem nome', colecao.every(d => d.nome && d.nome.trim()), true);
+const swDaColecao = fs.readFileSync(path + 'sw.js', 'utf8');
+confere('o sw.js guarda a coleção para usar sem internet',
+  swDaColecao.indexOf("importScripts('colecao.js')") > -1 && swDaColecao.indexOf("'./colecao.js'") > -1 &&
+  swDaColecao.indexOf('cache.addAll(TUDO)') > -1, true);
+confere('o index.html carrega a coleção antes do app',
+  (h => h.indexOf('src="colecao.js"') > -1 && h.indexOf('src="colecao.js"') < h.indexOf('src="app.js"'))(
+    fs.readFileSync(path + 'index.html', 'utf8')), true);
+
+confere('todo desenho da coleção cai em algum grupo',
+  app.rodar("COLECAO_DE_DESENHOS.filter(d => !grupoDoNome(d.nome)).map(d => d.nome)"), []);
+confere('todo exercício das duas fichas tem pelo menos 2 desenhos parecidos',
+  app.rodar("DADOS_INICIAIS.exercicios.concat(DADOS_ELIETE.exercicios)" +
+    ".filter(e => desenhosParecidos(e).length < 2).map(e => e.nome)"), []);
+confere('o tríceps na polia mostra só os 7 de tríceps',
+  app.rodar("desenhosParecidos({ nome: 'Tríceps na polia' }).map(d => d.nome)"),
+  ['Tríceps acima da cabeça com halter', 'Tríceps acima da cabeça na polia', 'Tríceps coice com halter',
+   'Tríceps na polia com barra', 'Tríceps na polia com corda', 'Tríceps na polia com pegada invertida',
+   'Tríceps testa com barra W']);
+confere('a panturrilha no leg press cai na panturrilha, não no leg press',
+  app.rodar("grupoDoNome('Panturrilha no leg press')"), 'panturrilha');
+confere('supino inclinado não se mistura com supino reto',
+  app.rodar("[grupoDoNome('Supino inclinado com halteres'), grupoDoNome('Supino com halteres deitado')]"),
+  ['supino-inclinado', 'supino']);
+confere('peck deck reverso cai no voador inverso',
+  app.rodar("grupoDoNome('Peck deck reverso')"), 'voador-inverso');
+confere('abdução de quadril cai na abdutora, não no glúteo',
+  app.rodar("grupoDoNome('Abdução de quadril na polia')"), 'abdutora');
+confere('exercício criado com nome desconhecido não tem parecidos',
+  app.rodar("desenhosParecidos({ nome: 'Alongamento' }).length"), 0);
+
+app.rodar("sessao = criarSessao('treino-a1'); sessao.itemAberto = 0; desenhar();");
+confere('o cartão aberto oferece trocar o desenho',
+  app.rodar("document.getElementById('conteudo').innerHTML").indexOf('data-acao="abrir-desenhos" data-id="leg-press"') > -1, true);
+
+app.rodar("abrirEscolhaDeDesenho('leg-press');");
+const telaDesenho = app.rodar("document.getElementById('painel').innerHTML");
+confere('a tela mostra só os 7 de leg press',
+  (telaDesenho.match(/data-acao="escolher-desenho"/g) || []).length, 7);
+confere('e nenhum de outro tipo', telaDesenho.indexOf('Supino') === -1, true);
+confere('e diz de qual exercício é', telaDesenho.indexOf('Leg press') > -1, true);
+
+const historicoAntes = app.rodar("JSON.stringify(banco.sessoes)");
+app.rodar("escolherDesenho('imagens/colecao/037-leg-press-horizontal.webp');");
+confere('o desenho escolhido ficou no exercício',
+  app.rodar("[acharExercicio('leg-press').ilustracao, acharExercicio('leg-press').ilustracaoEscolhida]"),
+  ['imagens/colecao/037-leg-press-horizontal.webp', true]);
+confere('a tela fechou', app.rodar('painelAberto'), null);
+confere('o histórico não foi tocado', app.rodar("JSON.stringify(banco.sessoes)"), historicoAntes);
+confere('ficou gravado', app.rodar("JSON.parse(localStorage.getItem(chaveBanco(perfilId))).exercicios" +
+  ".find(e => e.id === 'leg-press').ilustracao"), 'imagens/colecao/037-leg-press-horizontal.webp');
+
+app.rodar("abrirEscolhaDeDesenho('leg-press');");
+confere('reabrindo, o escolhido aparece marcado',
+  app.rodar("document.getElementById('painel').innerHTML").indexOf('desenho-opcao escolhido') > -1, true);
+app.rodar("fecharHistorico();");
+
+app.rodar("desfazer();");
+confere('o Desfazer devolve o desenho de antes',
+  app.rodar("[acharExercicio('leg-press').ilustracao, !!acharExercicio('leg-press').ilustracaoEscolhida]"),
+  ['imagens/leg-press.webp', false]);
+
+app.rodar("abrirEscolhaDeDesenho('rosca-inclinada'); escolherDesenho('imagens/colecao/021-rosca-halteres-sentado.webp');" +
+  "banco.versaoDosDados = 4; aplicarFichaNova();");
+confere('uma atualização da ficha não passa por cima do desenho escolhido',
+  app.rodar("acharExercicio('rosca-inclinada').ilustracao"), 'imagens/colecao/021-rosca-halteres-sentado.webp');
 
 console.log('\n' + (falhas === 0 ? 'TUDO PASSOU' : falhas + ' FALHA(S)'));
 process.exit(falhas === 0 ? 0 : 1);

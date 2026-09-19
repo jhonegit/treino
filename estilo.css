@@ -687,6 +687,64 @@ textarea:focus { outline: 2px solid var(--destaque); outline-offset: -2px; }
 
 .vazio { text-align: center; color: var(--marrom-claro); padding: 30px 10px; }
 
+/* ---------- escolher desenho ---------- */
+
+/* o link fica logo abaixo do desenho, pequeno, para não roubar a cena */
+.btn-vinculo.trocar-desenho { display: block; margin: 8px 0 0 auto; padding: 6px 0; }
+
+.desenho-de-agora {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--marrom-medio);
+}
+
+.desenho-de-agora img { width: 84px; height: 84px; object-fit: contain; flex: none; }
+
+/* duas colunas: no celular cada desenho fica com uns 180px, o bastante
+   para reconhecer a máquina sem precisar abrir */
+.grade-desenhos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.desenho-opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--marrom);
+  text-align: left;
+  cursor: pointer;
+}
+
+.desenho-opcao img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #fff;
+}
+
+.desenho-opcao.escolhido {
+  border: 2px solid var(--destaque);
+  background: var(--destaque-fundo);
+}
+
 /* segunda linha do cartão da lista de treinos */
 .extra-cinza { margin-top: 4px; font-size: 14px; color: var(--marrom-claro); }
 
@@ -1092,3 +1150,84 @@ textarea:focus { outline: 2px solid var(--destaque); outline-offset: -2px; }
 
 /* em tela estreita eles descem de linha em vez de apertar o texto */
 .linha-backup button { min-width: 104px; }
+
+/* ---------- blocos, como fazer e vídeo (18/09/2026) ---------- */
+
+/* "Bloco 1 · treino 2 de 6", logo abaixo do nome do treino */
+.linha-bloco {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--destaque-clara);
+}
+
+.como-fazer {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: #fff;
+}
+.como-fazer p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--texto);
+}
+.como-fazer b { color: var(--marrom); }
+
+.bloco-video { margin-top: 14px; }
+
+.fileira-video {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* o link de busca tem cara de botão, igual aos outros */
+a.btn-pequeno {
+  display: inline-flex;
+  align-items: center;
+  color: var(--marrom);
+  background: #fff;
+  border: 1px solid var(--borda-forte);
+  text-decoration: none;
+}
+
+.campo-link {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 8px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 16px;   /* 16 ou mais: o iPhone não dá zoom ao tocar no campo */
+  color: var(--texto);
+  background: #fff;
+}
+.campo-link:focus { outline: 2px solid var(--destaque); outline-offset: -2px; }
+
+/* o player ocupa a largura do cartão, na proporção de vídeo */
+.moldura-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+.moldura-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* primeira vez: o conselho do instrutor precisa chamar atenção */
+.ultima-vez.primeira-vez {
+  background: var(--destaque-fundo);
+  border-color: var(--destaque);
+}
